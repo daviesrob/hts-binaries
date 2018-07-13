@@ -5,7 +5,9 @@ all: wrappers/glibc/libglibc_wrap.a
 
 clean:
 	-rm -f wrappers/glibc/*.o wrappers/glibc/*.a
-	cd sources/zlib && make clean && git clean -f -d -q -x && git reset --hard
+	-rm -rf sources/xz-*/ sources/bzip2-*/
+	cd sources/zlib && git clean -f -d -q -x && git reset --hard
+	cd sources/libdeflate && git clean -f -d -q -x && git reset --hard
 
 # Wrappers to deal with glibc versioned symbols
 wrappers/glibc/libglibc_wrap.a: wrappers/glibc/glibc_wrap.o wrappers/glibc/glibm_wrap.o
