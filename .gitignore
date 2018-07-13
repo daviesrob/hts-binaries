@@ -1,3 +1,6 @@
 *.o
 *.a
-
+sources/xz-*.tar.xz
+sources/bzip2-*.tar.gz
+sources/xz-*/
+sources/bzip2-*/
