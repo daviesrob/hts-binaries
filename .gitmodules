@@ -4,3 +4,12 @@
 [submodule "sources/libdeflate"]
 	path = sources/libdeflate
 	url = https://github.com/ebiggers/libdeflate.git
+[submodule "sources/samtools"]
+	path = sources/samtools
+	url = https://github.com/samtools/samtools.git
+[submodule "sources/htslib"]
+	path = sources/htslib
+	url = https://github.com/samtools/htslib.git
+[submodule "sources/bcftools"]
+	path = sources/bcftools
+	url = https://github.com/samtools/bcftools.git
