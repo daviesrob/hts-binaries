@@ -20,11 +20,29 @@ void *__wrap_memcpy(void *dest, const void *src, size_t n) {
 }
 
 /*
-  sscanf() was changed in glibc 2.7 to support the C99 'm' modifier.
-  It also gets redirected to __isoc99_sscanf() by stdio.h.
+  scanf() and friends were changed in glibc 2.7 to support the C99 'm' modifier.
+  It also gets redirected to __isoc99_scanf() by stdio.h (similarly for
+  fscanf(), sscanf() etc.)
  */
-
+asm(".symver _vscanf_2_2_5, vscanf@GLIBC_2.2.5");
 asm(".symver _vsscanf_2_2_5, vsscanf@GLIBC_2.2.5");
+asm(".symver _vfscanf_2_2_5, vfscanf@GLIBC_2.2.5");
+int __wrap_scanf(const char *format, ...) {
+    va_list args;
+    int res;
+    va_start(args, format);
+    res = _vscanf_2_2_5(format, args);
+    va_end(args);
+    return res;
+}
+int __wrap___isoc99_scanf(const char *format, ...) {
+    va_list args;
+    int res;
+    va_start(args, format);
+    res = _vscanf_2_2_5(format, args);
+    va_end(args);
+    return res;
+}
 int __wrap_sscanf(const char *str, const char *format, ...) {
     va_list args;
     int res;
@@ -40,6 +58,20 @@ int __wrap___isoc99_sscanf(const char *str, const char *format, ...) {
     res = _vsscanf_2_2_5(str, format, args);
     va_end(args);
     return res;
+}
+int __wrap_fscanf(FILE *stream, const char *format, ...) {
+    va_list args;
+    int res;
+    va_start(args, format);
+    res = _vfscanf_2_2_5(stream, format, args);
+    va_end(args);
+}
+int __wrap___isoc99_fscanf(FILE *stream, const char *format, ...) {
+    va_list args;
+    int res;
+    va_start(args, format);
+    res = _vfscanf_2_2_5(stream, format, args);
+    va_end(args);
 }
 
 /*

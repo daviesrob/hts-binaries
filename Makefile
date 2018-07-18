@@ -31,8 +31,12 @@ wrappers/glibc/glibm_wrap.o: wrappers/glibc/glibm_wrap.c
 
 wrapper_ldflags = -Wl,--wrap=memcpy \
                   -Wl,--wrap=lgamma \
+                  -Wl,--wrap=scanf \
+                  -Wl,--wrap=__isoc99_scanf \
                   -Wl,--wrap=sscanf \
                   -Wl,--wrap=__isoc99_sscanf \
+                  -Wl,--wrap=fscanf \
+                  -Wl,--wrap=__isoc99_fscanf \
                   -Wl,--wrap=__fdelt_chk \
                   -Wl,--wrap=__stack_chk_fail \
                   -Wl,--hash-style=both
@@ -65,14 +69,17 @@ $(sources_bcftools):
 # Version numbers to expect
 xz_version = 5.2.4
 bzip2_version = 1.0.6
+ncurses_version = 6.1
 
 # Source tar files
 xz_tar_file = xz-$(xz_version).tar.xz
 bzip2_tar_file = bzip2-$(bzip2_version).tar.gz
+ncurses_tar_file = ncurses-$(ncurses_version).tar.gz
 
 # Source directories
 sources_xz = sources/xz-$(xz_version)
 sources_bzip2 = sources/bzip2-$(bzip2_version)
+sources_ncurses = sources/ncurses-$(ncurses_version)
 
 # Get tar files
 
@@ -82,6 +89,9 @@ sources/$(xz_tar_file):
 sources/$(bzip2_tar_file):
 	cd sources && wget http://bzip.org/$(bzip2_version)/$(bzip2_tar_file)
 
+sources/$(ncurses_tar_file):
+	cd sources && wget https://invisible-mirror.net/archives/ncurses/$(ncurses_tar_file)
+
 # Unpack tars
 
 $(sources_xz)/configure: sources/$(xz_tar_file)
@@ -89,6 +99,9 @@ $(sources_xz)/configure: sources/$(xz_tar_file)
 
 $(sources_bzip2)/Makefile: sources/$(bzip2_tar_file)
 	cd sources && tar xvzf $(bzip2_tar_file) && touch ../$(sources_bzip2)/Makefile
+
+$(sources_ncurses)/configure: sources/$(ncurses_tar_file)
+	cd sources && tar xvzf $(ncurses_tar_file) && touch ../$(sources_ncurses)/configure
 
 # Build libz.a
 sources/zlib/libz.a: $(sources_zlib)
@@ -118,6 +131,12 @@ $(sources_bzip2)/libbz2.a: $(sources_bzip2)/Makefile
 	cd $(sources_bzip2) && \
 	$(MAKE) CFLAGS='-g -O3 -fpic -D_FILE_OFFSET_BITS=64'
 
+# Build libcurses.a
+built_deps/lib/libncurses.a: $(sources_ncurses)/configure
+	cd $(sources_ncurses) && \
+	./configure --without-cxx --without-progs --disable-db-install --disable-home-terminfo --enable-const --enable-termcap --without-gpm --with-normal --without-dlsym --without-manpages --without-tests --with-terminfo-dirs=/etc/terminfo:/lib/terminfo:/usr/share/terminfo -with-default-terminfo-dir=/usr/share/terminfo --with-termpath=/etc/termcap:/usr/share/misc/termcap --prefix=$$(pwd -P)/../../built_deps && \
+	$(MAKE) clean && $(MAKE) && $(MAKE) install
+
 # Build htslib
 sources/htslib/configure: $(sources_htslib)
 	cd sources/htslib && \
@@ -146,13 +165,19 @@ sources/samtools/configure: $(sources_samtools)
 	autoconf && \
 	autoheader
 
-staging/bin/samtools: staging/lib/libhts.a wrappers/glibc/libglibc_wrap.a sources/samtools/configure
+# Note -lncurses needs to be added to LIBS as otherwise the configure
+# curses detection fails (it puts -lncurses after -lglibc_wrap so the
+# wrapper symbols can't be found)
+staging/bin/samtools: sources/samtools/configure \
+                      built_deps/lib/libncurses.a \
+                      staging/lib/libhts.a \
+                      wrappers/glibc/libglibc_wrap.a
 	cd sources/samtools && \
 	$(MAKE) distclean && \
-	./configure CPPFLAGS='-I../zlib' \
-	            LDFLAGS='-L../../wrappers/glibc -L../zlib $(wrapper_ldflags)' \
-                    LIBS='-lglibc_wrap' \
-                    --without-curses \
+	./configure CPPFLAGS='-I../zlib -I../../built_deps/include' \
+	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../../built_deps/lib $(wrapper_ldflags)' \
+                    LIBS='-lncurses -lglibc_wrap' \
+                    --with-ncurses \
                     --prefix="$$(pwd -P)/../../staging" && \
 	$(MAKE) && \
 	$(MAKE) install
