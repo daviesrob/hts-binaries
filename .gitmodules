@@ -1,6 +1,7 @@
 [submodule "sources/zlib"]
 	path = sources/zlib
 	url = https://github.com/madler/zlib.git
+	ignore = dirty
 [submodule "sources/libdeflate"]
 	path = sources/libdeflate
 	url = https://github.com/ebiggers/libdeflate.git
