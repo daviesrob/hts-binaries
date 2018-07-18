@@ -1,8 +1,12 @@
 *.o
 *.a
+.dir-locals.el
 sources/xz-*.tar.xz
 sources/bzip2-*.tar.gz
+sources/ncurses-*.tar.gz
 sources/xz-*/
 sources/bzip2-*/
+sources/ncurses-*/
+built_deps/
 staging/
 htstools-glibc.tgz
