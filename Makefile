@@ -15,11 +15,11 @@ clean-staging: clean-tarfile
 clean: clean-staging
 	-rm -f wrappers/glibc/*.o wrappers/glibc/*.a
 	-rm -rf sources/xz-*/ sources/bzip2-*/
-	cd sources/zlib && git clean -f -d -q -x && git reset --hard
-	cd sources/libdeflate && git clean -f -d -q -x && git reset --hard
-	cd sources/htslib && git clean -f -d -q -x && git reset --hard
-	cd sources/samtools && git clean -f -d -q -x && git reset --hard
-	cd sources/bcftools && git clean -f -d -q -x && git reset --hard
+	cd $(sources_zlib) && git clean -f -d -q -x && git reset --hard
+	cd $(sources_libdeflate) && git clean -f -d -q -x && git reset --hard
+	cd $(sources_htslib) && git clean -f -d -q -x && git reset --hard
+	cd $(sources_samtools) && git clean -f -d -q -x && git reset --hard
+	cd $(sources_bcftools) && git clean -f -d -q -x && git reset --hard
 
 # Wrappers to deal with glibc versioned symbols
 wrappers/glibc/libglibc_wrap.a: wrappers/glibc/glibc_wrap.o wrappers/glibc/glibm_wrap.o
@@ -42,28 +42,27 @@ wrapper_ldflags = -Wl,--wrap=memcpy \
                   -Wl,--hash-style=both
 
 # Sources in submodules
-# Create some variables for the dependencies used to get the submodules to
-# update
-sources_zlib = sources/zlib/configure
-sources_libdeflate = sources/libdeflate/Makefile
-sources_htslib = sources/htslib/configure.ac
-sources_samtools = sources/samtools/configure.ac
-sources_bcftools = sources/bcftools/configure.ac
+# Create some variables for the source directories
+sources_zlib = sources/zlib
+sources_libdeflate = sources/libdeflate
+sources_htslib = sources/htslib
+sources_samtools = sources/samtools
+sources_bcftools = sources/bcftools
 
-$(sources_zlib) sources/zlib/README:
-	git submodule update sources/zlib
+$(sources_zlib)/configure $(sources_zlib)/README:
+	git submodule update $(sources_zlib)
 
-$(sources_libdeflate) sources/libdeflate/COPYING:
-	git submodule update sources/libdeflate
+$(sources_libdeflate)/Makefile $(sources_libdeflate)/COPYING:
+	git submodule update $(sources_libdeflate)
 
-$(sources_htslib) sources/htslib/LICENSE:
-	git submodule update sources/htslib
+$(sources_htslib)/configure.ac $(sources_htslib)/LICENSE:
+	git submodule update $(sources_htslib)
 
-$(sources_samtools) sources/samtools/LICENSE:
-	git submodule update sources/samtools
+$(sources_samtools)/configure.ac $(sources_samtools)/LICENSE:
+	git submodule update $(sources_samtools)
 
-$(sources_bcftools) sources/bcftools/LICENSE:
-	git submodule update sources/bcftools
+$(sources_bcftools)/configure.ac $(sources_bcftools)/LICENSE:
+	git submodule update $(sources_bcftools)
 
 # Sources from release tar files
 # Version numbers to expect
@@ -104,15 +103,15 @@ $(sources_ncurses)/configure $(sources_ncurses)/COPYING: sources/$(ncurses_tar_f
 	cd sources && tar xvzf $(ncurses_tar_file) && touch ../$(sources_ncurses)/configure
 
 # Build libz.a
-sources/zlib/libz.a: $(sources_zlib)
-	cd sources/zlib && \
+$(sources_zlib)/libz.a: $(sources_zlib)/configure
+	cd $(sources_zlib) && \
 	CFLAGS='-g -O3 -fpic' ./configure --static && \
 	$(MAKE) clean && \
 	$(MAKE)
 
 # Build libdeflate.a
-sources/libdeflate/libdeflate.a: $(sources_libdeflate)
-	cd sources/libdeflate && \
+$(sources_libdeflate)/libdeflate.a: $(sources_libdeflate)/Makefile
+	cd $(sources_libdeflate) && \
 	$(MAKE) clean && \
 	$(MAKE) libdeflate.a CFLAGS='-g -O3 -fpic'
 
@@ -138,18 +137,18 @@ built_deps/lib/libncurses.a: $(sources_ncurses)/configure
 	$(MAKE) clean && $(MAKE) && $(MAKE) install
 
 # Build htslib
-sources/htslib/configure: $(sources_htslib)
-	cd sources/htslib && \
+$(sources_htslib)/configure: $(sources_htslib)/configure.ac
+	cd $(sources_htslib) && \
 	autoconf && \
 	autoheader
 
-staging/lib/libhts.a: sources/htslib/configure \
+staging/lib/libhts.a: $(sources_htslib)/configure \
                       $(sources_bzip2)/libbz2.a \
                       $(sources_xz)/liblzma.a \
-                      sources/libdeflate/libdeflate.a \
-                      sources/zlib/libz.a \
+                      $(sources_libdeflate)/libdeflate.a \
+                      $(sources_zlib)/libz.a \
                       wrappers/glibc/libglibc_wrap.a
-	cd sources/htslib && \
+	cd $(sources_htslib) && \
 	$(MAKE) distclean && \
 	./configure CPPFLAGS='-I../zlib -I../libdeflate -I../../$(sources_bzip2) -I../../$(sources_xz)' \
 	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../libdeflate -L../../$(sources_bzip2) -L../../$(sources_xz) $(wrapper_ldflags)' \
@@ -160,19 +159,19 @@ staging/lib/libhts.a: sources/htslib/configure \
 	$(MAKE) install
 
 # Build samtools
-sources/samtools/configure: $(sources_samtools)
-	cd sources/samtools && \
+$(sources_samtools)/configure: $(sources_samtools)/configure.ac
+	cd $(sources_samtools) && \
 	autoconf && \
 	autoheader
 
 # Note -lncurses needs to be added to LIBS as otherwise the configure
 # curses detection fails (it puts -lncurses after -lglibc_wrap so the
 # wrapper symbols can't be found)
-staging/bin/samtools: sources/samtools/configure \
+staging/bin/samtools: $(sources_samtools)/configure \
                       built_deps/lib/libncurses.a \
                       staging/lib/libhts.a \
                       wrappers/glibc/libglibc_wrap.a
-	cd sources/samtools && \
+	cd $(sources_samtools) && \
 	$(MAKE) distclean && \
 	./configure CPPFLAGS='-I../zlib -I../../built_deps/include' \
 	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../../built_deps/lib $(wrapper_ldflags)' \
@@ -195,21 +194,21 @@ copyright_xz: staging/share/doc/xz/copyright
 copyright_libdeflate: staging/share/doc/libdeflate/copyright
 copyright_ncurses: staging/share/doc/ncurses/copyright
 
-staging/share/doc/samtools/copyright: sources/samtools/LICENSE
+staging/share/doc/samtools/copyright: $(sources_samtools)/LICENSE
 	mkdir -p staging/share/doc/samtools && \
-	cp sources/samtools/LICENSE $@
+	cp $(sources_samtools)/LICENSE $@
 
-staging/share/doc/htslib/copyright: sources/htslib/LICENSE
+staging/share/doc/htslib/copyright: $(sources_htslib)/LICENSE
 	mkdir -p staging/share/doc/htslib && \
-	cp sources/htslib/LICENSE $@
+	cp $(sources_htslib)/LICENSE $@
 
-staging/share/doc/bcftools/copyright: sources/bcftools/LICENSE
+staging/share/doc/bcftools/copyright: $(sources_bcftools)/LICENSE
 	mkdir -p staging/share/doc/bcftools && \
-	cp sources/bcftools/LICENSE $@
+	cp $(sources_bcftools)/LICENSE $@
 
-staging/share/doc/zlib/copyright: sources/zlib/README
+staging/share/doc/zlib/copyright: $(sources_zlib)/README
 	mkdir -p staging/share/doc/zlib && \
-	perl -lne 'if (/^Acknowledgments::/) { $$p = 1; } if ($$p) { print; } if (/\s+jloup@gzip\.org\s+madler@alumni\.caltech\.edu/) { $$p = 0; }' sources/zlib/README > $@
+	perl -lne 'if (/^Acknowledgments::/) { $$p = 1; } if ($$p) { print; } if (/\s+jloup@gzip\.org\s+madler@alumni\.caltech\.edu/) { $$p = 0; }' $(sources_zlib)/README > $@
 
 staging/share/doc/bzip2/copyright: $(sources_bzip2)/LICENSE
 	mkdir -p staging/share/doc/bzip2 && \
@@ -221,9 +220,9 @@ staging/share/doc/xz/copyright: $(sources_xz)/COPYING
 	echo 'No other part of XZ is included.' >> $@ && \
 	cat $(sources_xz)/COPYING >> $@
 
-staging/share/doc/libdeflate/copyright: sources/libdeflate/COPYING
+staging/share/doc/libdeflate/copyright: $(sources_libdeflate)/COPYING
 	mkdir -p staging/share/doc/libdeflate && \
-	cp sources/libdeflate/COPYING $@
+	cp $(sources_libdeflate)/COPYING $@
 
 staging/share/doc/ncurses/copyright: $(sources_ncurses)/COPYING
 	mkdir -p staging/share/doc/ncurses && \
