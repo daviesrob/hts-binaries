@@ -41,6 +41,13 @@ wrapper_ldflags = -Wl,--wrap=memcpy \
                   -Wl,--wrap=__stack_chk_fail \
                   -Wl,--hash-style=both
 
+# Wrapper around libcurl
+wrappers/libcurl/libcurl.a: wrappers/libcurl/libcurl_wrap.o
+	$(AR) -rc $@ $^
+
+wrappers/libcurl/libcurl_wrap.o: wrappers/libcurl/libcurl_wrap.c wrappers/libcurl/curl/curl.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -Iwrappers/libcurl -fpic -c -o $@ $<
+
 # Sources in submodules
 # Create some variables for the source directories
 sources_zlib = sources/zlib
@@ -94,13 +101,13 @@ sources/$(ncurses_tar_file):
 # Unpack tars
 
 $(sources_xz)/configure $(sources_xz)/COPYING: sources/$(xz_tar_file)
-	cd sources && tar xvJf $(xz_tar_file) && touch ../$(sources_xz)/configure
+	cd sources && tar xvJf $(xz_tar_file) && touch ../$(sources_xz)/configure ../$(sources_xz)/COPYING
 
 $(sources_bzip2)/Makefile $(sources_bzip2)/LICENSE: sources/$(bzip2_tar_file)
-	cd sources && tar xvzf $(bzip2_tar_file) && touch ../$(sources_bzip2)/Makefile
+	cd sources && tar xvzf $(bzip2_tar_file) && touch ../$(sources_bzip2)/Makefile ../$(sources_bzip2)/LICENSE
 
 $(sources_ncurses)/configure $(sources_ncurses)/COPYING: sources/$(ncurses_tar_file)
-	cd sources && tar xvzf $(ncurses_tar_file) && touch ../$(sources_ncurses)/configure
+	cd sources && tar xvzf $(ncurses_tar_file) && touch ../$(sources_ncurses)/configure ../$(sources_ncurses)/COPYING
 
 # Build libz.a
 $(sources_zlib)/libz.a: $(sources_zlib)/configure
@@ -147,13 +154,14 @@ staging/lib/libhts.a: $(sources_htslib)/configure \
                       $(sources_xz)/liblzma.a \
                       $(sources_libdeflate)/libdeflate.a \
                       $(sources_zlib)/libz.a \
-                      wrappers/glibc/libglibc_wrap.a
+                      wrappers/glibc/libglibc_wrap.a \
+                      wrappers/libcurl/libcurl.a
 	cd $(sources_htslib) && \
 	$(MAKE) distclean && \
-	./configure CPPFLAGS='-I../zlib -I../libdeflate -I../../$(sources_bzip2) -I../../$(sources_xz)' \
-	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../libdeflate -L../../$(sources_bzip2) -L../../$(sources_xz) $(wrapper_ldflags)' \
-                    LIBS='-lglibc_wrap' \
-                    --disable-libcurl \
+	./configure CPPFLAGS='-I../zlib -I../libdeflate -I../../$(sources_bzip2) -I../../$(sources_xz) -I../../wrappers/libcurl' \
+	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../libdeflate -L../../$(sources_bzip2) -L../../$(sources_xz) $(wrapper_ldflags) -L../../wrappers/libcurl' \
+                    LIBS='-lglibc_wrap -lcurl -ldl' \
+                    --disable-s3 \
                     --prefix="$$(pwd -P)/../../staging" && \
 	$(MAKE) && \
 	$(MAKE) install
@@ -175,7 +183,7 @@ staging/bin/samtools: $(sources_samtools)/configure \
 	$(MAKE) distclean && \
 	./configure CPPFLAGS='-I../zlib -I../../built_deps/include' \
 	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../../built_deps/lib $(wrapper_ldflags)' \
-                    LIBS='-lncurses -lglibc_wrap' \
+                    LIBS='-lncurses -lglibc_wrap -ldl' \
                     --with-ncurses \
                     --prefix="$$(pwd -P)/../../staging" && \
 	$(MAKE) && \
