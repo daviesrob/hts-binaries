@@ -50,19 +50,19 @@ sources_htslib = sources/htslib/configure.ac
 sources_samtools = sources/samtools/configure.ac
 sources_bcftools = sources/bcftools/configure.ac
 
-$(sources_zlib):
+$(sources_zlib) sources/zlib/README:
 	git submodule update sources/zlib
 
-$(sources_libdeflate):
+$(sources_libdeflate) sources/libdeflate/COPYING:
 	git submodule update sources/libdeflate
 
-$(sources_htslib):
+$(sources_htslib) sources/htslib/LICENSE:
 	git submodule update sources/htslib
 
-$(sources_samtools):
+$(sources_samtools) sources/samtools/LICENSE:
 	git submodule update sources/samtools
 
-$(sources_bcftools):
+$(sources_bcftools) sources/bcftools/LICENSE:
 	git submodule update sources/bcftools
 
 # Sources from release tar files
@@ -94,13 +94,13 @@ sources/$(ncurses_tar_file):
 
 # Unpack tars
 
-$(sources_xz)/configure: sources/$(xz_tar_file)
+$(sources_xz)/configure $(sources_xz)/COPYING: sources/$(xz_tar_file)
 	cd sources && tar xvJf $(xz_tar_file) && touch ../$(sources_xz)/configure
 
-$(sources_bzip2)/Makefile: sources/$(bzip2_tar_file)
+$(sources_bzip2)/Makefile $(sources_bzip2)/LICENSE: sources/$(bzip2_tar_file)
 	cd sources && tar xvzf $(bzip2_tar_file) && touch ../$(sources_bzip2)/Makefile
 
-$(sources_ncurses)/configure: sources/$(ncurses_tar_file)
+$(sources_ncurses)/configure $(sources_ncurses)/COPYING: sources/$(ncurses_tar_file)
 	cd sources && tar xvzf $(ncurses_tar_file) && touch ../$(sources_ncurses)/configure
 
 # Build libz.a
@@ -182,8 +182,58 @@ staging/bin/samtools: sources/samtools/configure \
 	$(MAKE) && \
 	$(MAKE) install
 
+copyright: copyright_samtools copyright_htslib copyright_bcftools \
+           copyright_zlib copyright_bzip2 copyright_xz copyright_libdeflate \
+           copyright_ncurses
+
+copyright_samtools: staging/share/doc/samtools/copyright
+copyright_htslib: staging/share/doc/htslib/copyright
+copyright_bcftools: staging/share/doc/bcftools/copyright
+copyright_zlib: staging/share/doc/zlib/copyright
+copyright_bzip2:  staging/share/doc/bzip2/copyright
+copyright_xz: staging/share/doc/xz/copyright
+copyright_libdeflate: staging/share/doc/libdeflate/copyright
+copyright_ncurses: staging/share/doc/ncurses/copyright
+
+staging/share/doc/samtools/copyright: sources/samtools/LICENSE
+	mkdir -p staging/share/doc/samtools && \
+	cp sources/samtools/LICENSE $@
+
+staging/share/doc/htslib/copyright: sources/htslib/LICENSE
+	mkdir -p staging/share/doc/htslib && \
+	cp sources/htslib/LICENSE $@
+
+staging/share/doc/bcftools/copyright: sources/bcftools/LICENSE
+	mkdir -p staging/share/doc/bcftools && \
+	cp sources/bcftools/LICENSE $@
+
+staging/share/doc/zlib/copyright: sources/zlib/README
+	mkdir -p staging/share/doc/zlib && \
+	perl -lne 'if (/^Acknowledgments::/) { $$p = 1; } if ($$p) { print; } if (/\s+jloup@gzip\.org\s+madler@alumni\.caltech\.edu/) { $$p = 0; }' sources/zlib/README > $@
+
+staging/share/doc/bzip2/copyright: $(sources_bzip2)/LICENSE
+	mkdir -p staging/share/doc/bzip2 && \
+	cp $(sources_bzip2)/LICENSE $@
+
+staging/share/doc/xz/copyright: $(sources_xz)/COPYING
+	mkdir -p staging/share/doc/xz && \
+	echo 'This software includes liblzma code from XZ Utils <https://tukaani.org/xz/>.' > $@ && \
+	echo 'No other part of XZ is included.' >> $@ && \
+	cat $(sources_xz)/COPYING >> $@
+
+staging/share/doc/libdeflate/copyright: sources/libdeflate/COPYING
+	mkdir -p staging/share/doc/libdeflate && \
+	cp sources/libdeflate/COPYING $@
+
+staging/share/doc/ncurses/copyright: $(sources_ncurses)/COPYING
+	mkdir -p staging/share/doc/ncurses && \
+	cp $(sources_ncurses)/COPYING $@
+
 # The tar file itself
-$(tar_root).tgz: staging/lib/libhts.a staging/bin/samtools
+$(tar_root).tgz: staging/lib/libhts.a staging/bin/samtools copyright
 	tar -cvzf $@ --show-transformed-names --transform 's,staging,$(tar_root),' --mode=og-w --owner=root --group=root staging
 
-.PHONY: all clean clean-staging clean-tarfile
+.PHONY: all clean clean-staging clean-tarfile \
+  copyright copyright_samtools copyright_htslib copyright_bcftools \
+  copyright_zlib copyright_bzip2 copyright_xz copyright_libdeflate \
+  copyright_ncurses
