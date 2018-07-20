@@ -4,9 +4,11 @@
 sources/xz-*.tar.xz
 sources/bzip2-*.tar.gz
 sources/ncurses-*.tar.gz
+sources/curl-*.tar.xz
 sources/xz-*/
 sources/bzip2-*/
 sources/ncurses-*/
+sources/curl-*/
 built_deps/
 staging/
 htstools-glibc.tgz

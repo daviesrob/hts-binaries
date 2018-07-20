@@ -14,7 +14,7 @@ clean-staging: clean-tarfile
 
 clean: clean-staging
 	-rm -f wrappers/glibc/*.o wrappers/glibc/*.a
-	-rm -rf sources/xz-*/ sources/bzip2-*/
+	-rm -rf sources/xz-*/ sources/bzip2-*/ sources/curl-*
 	cd $(sources_zlib) && git clean -f -d -q -x && git reset --hard
 	cd $(sources_libdeflate) && git clean -f -d -q -x && git reset --hard
 	cd $(sources_htslib) && git clean -f -d -q -x && git reset --hard
@@ -76,16 +76,19 @@ $(sources_bcftools)/configure.ac $(sources_bcftools)/LICENSE:
 xz_version = 5.2.4
 bzip2_version = 1.0.6
 ncurses_version = 6.1
+curl_version = 7.61.0
 
 # Source tar files
 xz_tar_file = xz-$(xz_version).tar.xz
 bzip2_tar_file = bzip2-$(bzip2_version).tar.gz
 ncurses_tar_file = ncurses-$(ncurses_version).tar.gz
+curl_tar_file = curl-$(curl_version).tar.xz
 
 # Source directories
 sources_xz = sources/xz-$(xz_version)
 sources_bzip2 = sources/bzip2-$(bzip2_version)
 sources_ncurses = sources/ncurses-$(ncurses_version)
+sources_curl = sources/curl-$(curl_version)
 
 # Get tar files
 
@@ -98,6 +101,9 @@ sources/$(bzip2_tar_file):
 sources/$(ncurses_tar_file):
 	cd sources && wget https://invisible-mirror.net/archives/ncurses/$(ncurses_tar_file)
 
+sources/$(curl_tar_file):
+	cd sources && wget https://curl.haxx.se/download/$(curl_tar_file)
+
 # Unpack tars
 
 $(sources_xz)/configure $(sources_xz)/COPYING: sources/$(xz_tar_file)
@@ -109,12 +115,16 @@ $(sources_bzip2)/Makefile $(sources_bzip2)/LICENSE: sources/$(bzip2_tar_file)
 $(sources_ncurses)/configure $(sources_ncurses)/COPYING: sources/$(ncurses_tar_file)
 	cd sources && tar xvzf $(ncurses_tar_file) && touch ../$(sources_ncurses)/configure ../$(sources_ncurses)/COPYING
 
+$(sources_curl)/configure $(sources_curl)/COPYING: sources/$(curl_tar_file)
+	cd sources && tar xvJf $(curl_tar_file) && touch ../$(sources_curl)/configure  $(sources_curl)/COPYING
+
 # Build libz.a
-$(sources_zlib)/libz.a: $(sources_zlib)/configure
+$(sources_zlib)/libz.a built_deps/lib/libz.a: $(sources_zlib)/configure
 	cd $(sources_zlib) && \
-	CFLAGS='-g -O3 -fpic' ./configure --static && \
+	CFLAGS='-g -O3 -fpic' ./configure --static --prefix=$$(pwd -P)/../../built_deps && \
 	$(MAKE) clean && \
-	$(MAKE)
+	$(MAKE) && \
+	$(MAKE) install
 
 # Build libdeflate.a
 $(sources_libdeflate)/libdeflate.a: $(sources_libdeflate)/Makefile
@@ -143,6 +153,35 @@ built_deps/lib/libncurses.a: $(sources_ncurses)/configure
 	./configure --without-cxx --without-progs --disable-db-install --disable-home-terminfo --enable-const --enable-termcap --without-gpm --with-normal --without-dlsym --without-manpages --without-tests --with-terminfo-dirs=/etc/terminfo:/lib/terminfo:/usr/share/terminfo -with-default-terminfo-dir=/usr/share/terminfo --with-termpath=/etc/termcap:/usr/share/misc/termcap --prefix=$$(pwd -P)/../../built_deps && \
 	$(MAKE) clean && $(MAKE) && $(MAKE) install
 
+# Build libcurl
+built_deps/lib/libcurl.so: $(sources_curl)/configure \
+                           built_deps/lib/libz.a \
+                           wrappers/glibc/libglibc_wrap.a
+	cd $(sources_curl) && \
+	./configure --enable-symbol-hiding --disable-ares --enable-rt \
+                    --disable-static --disable-file --disable-ldap \
+                    --disable-ldaps --disable-rtsp --disable-dict \
+                    --disable-telnet --disable-tftp --disable-pop3 \
+                    --disable-imap --disable-smb --disable-smtp \
+                    --disable-manual --enable-ipv6 --disable-versioned-symbols \
+                    --enable-threaded-resolver --enable-pthreads \
+                    --disable-verbose --disable-sspi --disable-ntlm-wb \
+                    --disable-unix-sockets --without-brotli --without-gssapi \
+                    --without-ssl --without-libpsl --without-libmetalink \
+                    --without-libssh2 --without-libssh --without-librtmp \
+                    --without-nghttp2 --with-zlib=$$(pwd -P)/../../built_deps \
+	            --prefix=$$(pwd -P)/../../built_deps \
+	            LDFLAGS=-L$$(pwd -P)'/../../wrappers/glibc $(wrapper_ldflags)' \
+	            LIBS='-lglibc_wrap' && \
+	$(MAKE) clean && \
+	$(MAKE) && \
+	$(MAKE) install
+
+# Fallback libcurl
+staging/lib/fallback/libcurl.so: built_deps/lib/libcurl.so
+	mkdir -p staging/lib/fallback && \
+	cp -a built_deps/lib/libcurl.so* staging/lib/fallback
+
 # Build htslib
 $(sources_htslib)/configure: $(sources_htslib)/configure.ac
 	cd $(sources_htslib) && \
@@ -155,10 +194,11 @@ staging/lib/libhts.a: $(sources_htslib)/configure \
                       $(sources_libdeflate)/libdeflate.a \
                       $(sources_zlib)/libz.a \
                       wrappers/glibc/libglibc_wrap.a \
-                      wrappers/libcurl/libcurl.a
+                      wrappers/libcurl/libcurl.a \
+                      built_deps/lib/libcurl.so
 	cd $(sources_htslib) && \
 	$(MAKE) distclean && \
-	./configure CPPFLAGS='-I../zlib -I../libdeflate -I../../$(sources_bzip2) -I../../$(sources_xz) -I../../wrappers/libcurl' \
+	./configure CPPFLAGS='-I../zlib -I../libdeflate -I../../$(sources_bzip2) -I../../$(sources_xz) -I../../wrappers/libcurl -I../../built-deps/include' \
 	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../libdeflate -L../../$(sources_bzip2) -L../../$(sources_xz) $(wrapper_ldflags) -L../../wrappers/libcurl' \
                     LIBS='-lglibc_wrap -lcurl -ldl' \
                     --disable-s3 \
@@ -236,8 +276,15 @@ staging/share/doc/ncurses/copyright: $(sources_ncurses)/COPYING
 	mkdir -p staging/share/doc/ncurses && \
 	cp $(sources_ncurses)/COPYING $@
 
+staging/share/doc/libcurl/copyright: $(sources_curl)/COPYING
+	mkdir -p staging/share/doc/libcurl && \
+	cp $(sources_curl)/COPYING $@
+
 # The tar file itself
-$(tar_root).tgz: staging/lib/libhts.a staging/bin/samtools copyright
+$(tar_root).tgz: staging/lib/libhts.a \
+                 staging/bin/samtools \
+                 staging/lib/fallback/libcurl.so \
+                 copyright
 	tar -cvzf $@ --show-transformed-names --transform 's,staging,$(tar_root),' --mode=og-w --owner=root --group=root staging
 
 .PHONY: all clean clean-staging clean-tarfile \

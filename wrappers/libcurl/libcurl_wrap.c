@@ -106,6 +106,8 @@ CURLcode curl_global_init(long flags) {
     not_loaded = try_load("libcurl.so.4");
     // Gnutls version on debian-based systems
     if (not_loaded) not_loaded = try_load("libcurl-gnutls.so.4");
+    // Fallback libcurl, included in the package
+    if (not_loaded) not_loaded = try_load("${ORIGIN}/../lib/fallback/libcurl.so");
     // Give up is not loaded at this point
     if (not_loaded) return CURLE_FAILED_INIT;
 
