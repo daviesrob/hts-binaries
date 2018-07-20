@@ -5,10 +5,16 @@ sources/xz-*.tar.xz
 sources/bzip2-*.tar.gz
 sources/ncurses-*.tar.gz
 sources/curl-*.tar.xz
+sources/gmp-*.tar.xz
+sources/gnutls-*.tar.xz
+sources/nettle-*.tar.gz
 sources/xz-*/
 sources/bzip2-*/
 sources/ncurses-*/
 sources/curl-*/
+sources/gmp-*/
+sources/gnutls-*/
+sources/nettle-*/
 built_deps/
 staging/
 htstools-glibc.tgz

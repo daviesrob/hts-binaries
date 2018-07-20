@@ -97,3 +97,12 @@ void __wrap___stack_chk_fail(void) {
     backtrace_symbols_fd(bt, s, fileno(stderr));
     abort();
 }
+
+/*
+  __vasprintf_chk appeared as part of the stack protection in glibc 2.8
+*/
+asm(".symver _vasprintf_2_2_5, vasprintf@GLIBC_2.2.5");
+int __wrap___vasprintf_chk(char **strp, int flags_ignored, const char *fmt,
+                           va_list args) {
+    return _vasprintf_2_2_5(strp, fmt, args);
+}
