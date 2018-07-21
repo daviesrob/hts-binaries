@@ -17,7 +17,10 @@ clean-staging: clean-tarfile
 
 clean: clean-staging
 	-rm -f wrappers/glibc/*.o wrappers/glibc/*.a
-	-rm -rf sources/xz-*/ sources/bzip2-*/ sources/curl-*
+	-rm -f wrappers/libcurl/*.o wrappers/libcurl/*.a
+	-rm -f wrappers/crypto/*.o wrappers/crypto/*.a
+	-rm -rf sources/xz-*/ sources/bzip2-*/ sources/curl-*/
+	-rm -rf sources/gmp-*/ sources/nettle-*/ sources/gnutls-*/
 	cd $(sources_zlib) && git clean -f -d -q -x && git reset --hard
 	cd $(sources_libdeflate) && git clean -f -d -q -x && git reset --hard
 	cd $(sources_htslib) && git clean -f -d -q -x && git reset --hard
@@ -256,7 +259,17 @@ built_deps/lib/libcurl.so: $(sources_curl)/configure \
 # Fallback libcurl
 staging/lib/fallback/libcurl.so: built_deps/lib/libcurl.so
 	mkdir -p staging/lib/fallback && \
-	cp -a built_deps/lib/libcurl.so* staging/lib/fallback
+	cp built_deps/lib/libcurl.so* staging/lib/fallback && \
+	touch $@
+
+# OpenSSL replacement
+# As we're building nettle (used by gnutls) for libcurl, we may as well use it
+# for the HMAC() function htslib usually gets from openssl.
+wrappers/crypto/crypto.o: wrappers/crypto/crypto.c built_deps/lib/libgnutls.a
+	$(CC) $(CFLAGS) $(CPPFLAGS) -Ibuilt_deps/include -fpic -c -o $@ $<
+
+wrappers/crypto/libcrypto.a: wrappers/crypto/crypto.o
+	$(AR) -rc $@ $^
 
 # Build htslib
 $(sources_htslib)/configure: $(sources_htslib)/configure.ac
@@ -271,13 +284,15 @@ staging/lib/libhts.a: $(sources_htslib)/configure \
                       $(sources_zlib)/libz.a \
                       wrappers/glibc/libglibc_wrap.a \
                       wrappers/libcurl/libcurl.a \
-                      built_deps/lib/libcurl.so
+                      wrappers/crypto/libcrypto.a \
+                      built_deps/lib/libcurl.so \
+                      built_deps/lib/libgnutls.a
 	cd $(sources_htslib) && \
 	$(MAKE) distclean && \
-	./configure CPPFLAGS='-I../zlib -I../libdeflate -I../../$(sources_bzip2) -I../../$(sources_xz) -I../../wrappers/libcurl -I../../built-deps/include' \
-	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../libdeflate -L../../$(sources_bzip2) -L../../$(sources_xz) $(wrapper_ldflags) -L../../wrappers/libcurl' \
-                    LIBS='-lglibc_wrap -lcurl -ldl' \
-                    --disable-s3 \
+	./configure CFLAGS='-g -O3 -Wall -fpic' \
+	            CPPFLAGS='-I../zlib -I../libdeflate -I../../$(sources_bzip2) -I../../$(sources_xz) -I../../wrappers/libcurl -I../../wrappers/crypto -I../../built-deps/include' \
+	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../libdeflate -L../../$(sources_bzip2) -L../../$(sources_xz) $(wrapper_ldflags) -L../../wrappers/libcurl -L../../wrappers/crypto -L../../built_deps/lib -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a -Wl,--gc-sections' \
+                    LIBS='-lcrypto -lnettle -lcurl -lglibc_wrap -ldl' \
                     --prefix="$$(pwd -P)/../../staging" && \
 	$(MAKE) && \
 	$(MAKE) install
@@ -298,8 +313,8 @@ staging/bin/samtools: $(sources_samtools)/configure \
 	cd $(sources_samtools) && \
 	$(MAKE) distclean && \
 	./configure CPPFLAGS='-I../zlib -I../../built_deps/include' \
-	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../../built_deps/lib $(wrapper_ldflags)' \
-                    LIBS='-lncurses -lglibc_wrap -ldl' \
+	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--gc-sections' \
+                    LIBS='-lcrypto -lnettle -lncurses -lglibc_wrap -ldl' \
                     --with-ncurses \
                     --prefix="$$(pwd -P)/../../staging" && \
 	$(MAKE) && \
