@@ -4,6 +4,8 @@ tar_root = htstools-glibc
 # some directories
 abs_built_deps=$(CURDIR)/built_deps
 
+CFLAGS=-g -O3 -Wall -fpic
+
 all: $(tar_root).tgz
 
 .c.o:
@@ -150,7 +152,7 @@ $(sources_gmp)/configure $(sources_gmp)/README: sources/$(gmp_tar_file)
 	cd sources && tar xvJf $(gmp_tar_file) && touch ../$(sources_gmp)/configure ../$(sources_gmp)/README
 
 $(sources_nettle)/configure $(sources_nettle)/nettle.texinfo: sources/$(nettle_tar_file)
-	cd sources && tar xvzf $(nettle_tar_file) && touch ../$(sources_nettle)/configure ../$(sources_nettle)/texinfo
+	cd sources && tar xvzf $(nettle_tar_file) && touch ../$(sources_nettle)/configure ../$(sources_nettle)/nettle.texinfo
 
 $(sources_gnutls)/configure $(sources_gnutls)/LICENSE: sources/$(gnutls_tar_file)
 	cd sources && tar xvJf $(gnutls_tar_file) && touch ../$(sources_gnutls)/configure ../$(sources_gnutls)/LICENSE
@@ -286,7 +288,7 @@ staging/lib/libhts.a: $(sources_htslib)/configure \
                       wrappers/libcurl/libcurl.a \
                       wrappers/crypto/libcrypto.a \
                       built_deps/lib/libcurl.so \
-                      built_deps/lib/libgnutls.a
+                      built_deps/lib/libnettle.a
 	cd $(sources_htslib) && \
 	$(MAKE) distclean && \
 	./configure CFLAGS='-g -O3 -Wall -fpic' \
@@ -316,6 +318,33 @@ staging/bin/samtools: $(sources_samtools)/configure \
 	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--gc-sections' \
                     LIBS='-lcrypto -lnettle -lncurses -lglibc_wrap -ldl' \
                     --with-ncurses \
+                    --prefix="$$(pwd -P)/../../staging" && \
+	$(MAKE) && \
+	$(MAKE) install
+
+# Build bcftools
+# Some code that we can inject to get bcftools to find its plugins
+
+wrappers/bcftools-plugin/liblocate_plugins.a: wrappers/bcftools-plugin/locate_plugins.o
+	$(AR) -rc $@ $^
+
+wrappers/bcftools-plugin/locate_plugins.o: wrappers/bcftools-plugin/locate_plugins.c wrappers/bcftools-plugin/locate_plugins.h
+
+$(sources_bcftools)/configure: $(sources_bcftools)/configure.ac
+	cd $(sources_bcftools) && \
+	autoconf && \
+	autoheader
+
+staging/bin/bcftools: $(sources_bcftools)/configure \
+                      staging/lib/libhts.a \
+                      wrappers/glibc/libglibc_wrap.a \
+	              wrappers/bcftools-plugin/liblocate_plugins.a \
+	              wrappers/bcftools-plugin/locate_plugins.h
+	cd $(sources_bcftools) && \
+	$(MAKE) distclean && \
+	./configure CPPFLAGS='-I../zlib -I../../built_deps/include -include ../../wrappers/bcftools-plugin/locate_plugins.h' \
+	            LDFLAGS='-L../../wrappers/glibc -L../../wrappers/bcftools-plugin -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a:liblocate_plugins.a -Wl,--gc-sections' \
+                    LIBS='-lcrypto -lnettle -llocate_plugins -lglibc_wrap -ldl' \
                     --prefix="$$(pwd -P)/../../staging" && \
 	$(MAKE) && \
 	$(MAKE) install
@@ -407,6 +436,7 @@ staging/share/doc/gnutls/copyright: $(sources_gnutls)/LICENSE $(sources_nettle)/
 # The tar file itself
 $(tar_root).tgz: staging/lib/libhts.a \
                  staging/bin/samtools \
+                 staging/bin/bcftools \
                  staging/lib/fallback/libcurl.so \
                  copyright
 	tar -cvzf $@ --show-transformed-names --transform 's,staging,$(tar_root),' --mode=og-w --owner=root --group=root staging
