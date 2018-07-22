@@ -1,0 +1,95 @@
+Samtools, Bcftools and HTSlib binary distribution
+=================================================
+
+This package contains a binary distribution of samtools and bcftools
+along with a selection of other programs like tabix and bgzip.  It
+also includes a copy of the htslib library that can be used with a
+number of third-party software.
+
+These binaries are designed to work on x86_64 Linux distributions
+that use the GNU C library (glibc).  Examples include Debian, Ubuntu,
+Fedora, CentOS, RedHat, Suse, Slackware and many more.  They
+will not work on distributions that use alternate C libraries (for
+example Alpine Linux, which uses musl) unless a copy of glibc is
+installed separately.
+
+The programs can all be found in the bin/ subdirectory.  Note that
+some of the programs will look for other files in locations relative
+to where the program has been installed.  To ensure they work properly
+it is important to keep them in this directory tree and not try to
+move them elsewhere.
+
+Manual pages can be found under the share/man directories (read them with
+`man -l`), and also at https://www.htslib.org/doc
+
+IMPORTANT SECURITY INFORMATION
+==============================
+
+These programs use libcurl (https://curl.haxx.se) to allow them
+to access files over the internet (http://, https://, ftp://, s3:// and
+gcs:// URLs).  They will prefer to use a copy of libcurl installed
+on you system if possible, but if that is either not available or
+not compatible, they will fall back to a copy included in the
+lib/fallback directory.
+
+While the included libcurl will have been the most recent version when this
+distribution was made, it may not be now.  In particular it will lack any
+security updates that have been made since it was built.  As the copy
+installed on your system should be getting these updates, it is **strongly**
+recommended that you use the system libcurl and not the one included here.
+
+To disable the fall-back libcurl, remove the file lib/fallback/libcurl.so.4
+
+If using the system libcurl causes problems, you can force the included
+one to be used by setting the LD_LIBRARY_PATH environment variable
+to the absolute path of the lib/fallback directory.
+
+License Summary
+===============
+
+Software in the distribution is provided under the terms of the following
+licenses:
+
+bcftools : GNU General Public License version 3 (due to including polysomy)
+
+samtools : The MIT/Expat License
+
+HTSlib   : The MIT/Expat License, except the cram support which is distributed
+           under the Modified (3-Clause) BSD license.
+
+Other software in bin/ is distributed under the MIT/Expat License terms.
+
+The binaries include software from a number of other packages.  That
+software is distributed under the following terms:
+
+libbz2 : BSD-style license.  See share/doc/bzip2/copyright.
+
+libdeflate : MIT license.
+
+liblzma : Public domain.  See share/doc/xz/copyright.
+
+libz : zlib license.
+
+nettle : GNU Lesser General Public License version 3.
+
+ncurses : X11 license.  Used only for `samtools tview`.
+
+gsl : GNU General Public License version 3.  Used only for `bcftools polysomy`.
+
+The incuded copy of libcurl and its dependencies are distributed under the
+following terms:
+
+libcurl : X11 derivative license.
+
+gnutls : GNU Lesser General Public License version 3.
+
+nettle : GNU Lesser General Public License version 3.
+
+gmp : GNU Lesser General Public License version 3.
+
+
+Full license information can be found under share/doc in the 'copyright'
+file for each package.
+
+Build Information
+=================

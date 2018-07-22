@@ -19,4 +19,4 @@ sources/gnutls-*/
 sources/nettle-*/
 built_deps/
 staging/
-htstools-glibc.tgz
+htstools-x86_64-linux-glibc.tgz

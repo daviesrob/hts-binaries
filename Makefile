@@ -1,5 +1,8 @@
+# Target for build
+target = x86_64-linux-glibc
+
 # Root directory for the binaries tar file
-tar_root = htstools-glibc
+tar_root = htstools-$(target)
 
 # some directories
 abs_built_deps=$(CURDIR)/built_deps
@@ -458,11 +461,35 @@ staging/share/doc/gnutls/copyright: $(sources_gnutls)/LICENSE $(sources_nettle)/
 	cat $(sources_nettle)/COPYING.LESSERv3 >> $@.tmp && \
 	mv -f $@.tmp $@
 
+# README file
+staging/README.$(target).txt : texts/readme.$(target).template \
+                               staging/bin/samtools \
+                               staging/bin/bcftools
+	cp texts/readme.$(target).template $@.tmp && \
+	printf '\nCurrent build system revision:\n' >> $@.tmp && \
+	git rev-parse --verify HEAD >> $@.tmp && \
+	git status -s >> $@.tmp && \
+	printf '\nRevisions used for sources obtained via git:\n\n' >> $@.tmp && \
+	git submodule status >> $@.tmp && \
+	printf '\nSHA224 checksums of downloaded source archive files:\n\n' >> $@.tmp && \
+	( cd sources && sha224sum $(bzip2_tar_file) $(curl_tar_file) \
+             $(gmp_tar_file) $(gnutls_tar_file) $(gsl_tar_file) \
+             $(ncurses_tar_file) $(nettle_tar_file) $(xz_tar_file) ) >> $@.tmp && \
+	printf '\nBuild host : ' >> $@.tmp && \
+	uname -s -r -v -m -o >> $@.tmp && \
+	perl -ne 'if (/^model name/) { s/.*?:\s+//; print "CPU model : $$_"; last; }' /proc/cpuinfo >> $@.tmp && \
+	printf '\nCompiler information (gcc -v):\n' >> $@.tmp && \
+	gcc -v >> $@.tmp 2>&1 && \
+	printf '\nLinker version (ld -v):\n' >> $@.tmp && \
+	ld -v >> $@.tmp && \
+	mv $@.tmp $@
+
 # The tar file itself
 $(tar_root).tgz: staging/lib/libhts.a \
                  staging/bin/samtools \
                  staging/bin/bcftools \
                  staging/lib/fallback/libcurl.so \
+                 staging/README.$(target).txt \
                  copyright
 	tar -cvzf $@ --show-transformed-names --transform 's,staging,$(tar_root),' --mode=og-w --owner=root --group=root staging
 
