@@ -491,7 +491,11 @@ $(tar_root).tgz: staging/lib/libhts.a \
                  staging/lib/fallback/libcurl.so \
                  staging/README.$(target).txt \
                  copyright
-	tar -cvzf $@ --show-transformed-names --transform 's,staging,$(tar_root),' --mode=og-w --owner=root --group=root staging
+	tar -cvzf $@ --show-transformed-names \
+	    --transform 's,staging,$(tar_root),' \
+	    --exclude=staging/lib/libhts.a \
+	    --exclude=staging/lib/pkgconfig \
+	    --mode=og-w --owner=root --group=root staging
 
 .PHONY: all clean clean-staging clean-tarfile \
   copyright copyright_samtools copyright_htslib copyright_bcftools \
