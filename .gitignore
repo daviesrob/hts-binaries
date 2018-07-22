@@ -5,6 +5,7 @@ sources/xz-*.tar.xz
 sources/bzip2-*.tar.gz
 sources/ncurses-*.tar.gz
 sources/curl-*.tar.xz
+sources/gsl-*.tar.gz
 sources/gmp-*.tar.xz
 sources/gnutls-*.tar.xz
 sources/nettle-*.tar.gz
@@ -12,6 +13,7 @@ sources/xz-*/
 sources/bzip2-*/
 sources/ncurses-*/
 sources/curl-*/
+sources/gsl-*/
 sources/gmp-*/
 sources/gnutls-*/
 sources/nettle-*/

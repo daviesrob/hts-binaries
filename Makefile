@@ -21,7 +21,7 @@ clean: clean-staging
 	-rm -f wrappers/glibc/*.o wrappers/glibc/*.a
 	-rm -f wrappers/libcurl/*.o wrappers/libcurl/*.a
 	-rm -f wrappers/crypto/*.o wrappers/crypto/*.a
-	-rm -rf sources/xz-*/ sources/bzip2-*/ sources/curl-*/
+	-rm -rf sources/xz-*/ sources/bzip2-*/ sources/curl-*/ sources/gsl-*/
 	-rm -rf sources/gmp-*/ sources/nettle-*/ sources/gnutls-*/
 	cd $(sources_zlib) && git clean -f -d -q -x && git reset --hard
 	cd $(sources_libdeflate) && git clean -f -d -q -x && git reset --hard
@@ -86,6 +86,7 @@ xz_version = 5.2.4
 bzip2_version = 1.0.6
 ncurses_version = 6.1
 curl_version = 7.61.0
+gsl_version = 2.5
 # Needed for gnutls + dependencies
 gmp_version = 6.1.2
 nettle_version = 3.4
@@ -96,6 +97,7 @@ xz_tar_file = xz-$(xz_version).tar.xz
 bzip2_tar_file = bzip2-$(bzip2_version).tar.gz
 ncurses_tar_file = ncurses-$(ncurses_version).tar.gz
 curl_tar_file = curl-$(curl_version).tar.xz
+gsl_tar_file = gsl-$(gsl_version).tar.gz
 # Tar files for gnutls + dependencies
 gmp_tar_file = gmp-$(gmp_version).tar.xz
 nettle_tar_file = nettle-$(nettle_version).tar.gz
@@ -106,6 +108,7 @@ sources_xz = sources/xz-$(xz_version)
 sources_bzip2 = sources/bzip2-$(bzip2_version)
 sources_ncurses = sources/ncurses-$(ncurses_version)
 sources_curl = sources/curl-$(curl_version)
+sources_gsl = sources/gsl-$(gsl_version)
 # Sources for gnutls + dependencies
 sources_gmp = sources/gmp-$(gmp_version)
 sources_nettle = sources/nettle-$(nettle_version)
@@ -124,6 +127,9 @@ sources/$(ncurses_tar_file):
 
 sources/$(curl_tar_file):
 	cd sources && wget https://curl.haxx.se/download/$(curl_tar_file)
+
+sources/$(gsl_tar_file):
+	cd sources && wget https://ftpmirror.gnu.org/gsl/$(gsl_tar_file)
 
 sources/$(gmp_tar_file):
 	cd sources && wget https://gmplib.org/download/gmp/$(gmp_tar_file)
@@ -147,6 +153,9 @@ $(sources_ncurses)/configure $(sources_ncurses)/COPYING: sources/$(ncurses_tar_f
 
 $(sources_curl)/configure $(sources_curl)/COPYING: sources/$(curl_tar_file)
 	cd sources && tar xvJf $(curl_tar_file) && touch ../$(sources_curl)/configure  ../$(sources_curl)/COPYING
+
+$(sources_gsl)/configure $(sources_gsl)/COPYING: sources/$(gsl_tar_file)
+	cd sources && tar xvzf $(gsl_tar_file) && touch ../$(sources_gsl)/configure ../$(sources_gsl)/COPYING
 
 $(sources_gmp)/configure $(sources_gmp)/README: sources/$(gmp_tar_file)
 	cd sources && tar xvJf $(gmp_tar_file) && touch ../$(sources_gmp)/configure ../$(sources_gmp)/README
@@ -191,6 +200,15 @@ built_deps/lib/libncurses.a: $(sources_ncurses)/configure
 	cd $(sources_ncurses) && \
 	./configure --without-cxx --without-progs --disable-db-install --disable-home-terminfo --enable-const --enable-termcap --without-gpm --with-normal --without-dlsym --without-manpages --without-tests --with-terminfo-dirs=/etc/terminfo:/lib/terminfo:/usr/share/terminfo -with-default-terminfo-dir=/usr/share/terminfo --with-termpath=/etc/termcap:/usr/share/misc/termcap --prefix=$$(pwd -P)/../../built_deps && \
 	$(MAKE) clean && $(MAKE) && $(MAKE) install
+
+# Build libgsl.a
+built_deps/lib/libgsl.a: $(sources_gsl)/configure
+	cd $(sources_gsl) && \
+	./configure --with-pic --enable-static --disable-shared \
+	            --prefix=$(abs_built_deps) && \
+	$(MAKE) clean && \
+	$(MAKE) && \
+	$(MAKE) install
 
 # libgnutls + dependencies
 # gmp
@@ -337,6 +355,7 @@ $(sources_bcftools)/configure: $(sources_bcftools)/configure.ac
 
 staging/bin/bcftools: $(sources_bcftools)/configure \
                       staging/lib/libhts.a \
+	              built_deps/lib/libgsl.a \
                       wrappers/glibc/libglibc_wrap.a \
 	              wrappers/bcftools-plugin/liblocate_plugins.a \
 	              wrappers/bcftools-plugin/locate_plugins.h
@@ -344,7 +363,8 @@ staging/bin/bcftools: $(sources_bcftools)/configure \
 	$(MAKE) distclean && \
 	./configure CPPFLAGS='-I../zlib -I../../built_deps/include -include ../../wrappers/bcftools-plugin/locate_plugins.h' \
 	            LDFLAGS='-L../../wrappers/glibc -L../../wrappers/bcftools-plugin -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a:liblocate_plugins.a -Wl,--gc-sections' \
-                    LIBS='-lcrypto -lnettle -llocate_plugins -lglibc_wrap -ldl' \
+                    LIBS='-lm -lcrypto -lnettle -llocate_plugins -lglibc_wrap -ldl' \
+	            --enable-libgsl --with-cblas=gslcblas \
                     --prefix="$$(pwd -P)/../../staging" && \
 	$(MAKE) && \
 	$(MAKE) install
@@ -352,7 +372,7 @@ staging/bin/bcftools: $(sources_bcftools)/configure \
 copyright: copyright_samtools copyright_htslib copyright_bcftools \
            copyright_zlib copyright_bzip2 copyright_xz copyright_libdeflate \
            copyright_ncurses copyright_libcurl copyright_gmp copyright_nettle \
-           copyright_gnutls
+           copyright_gnutls copyright_gsl
 
 copyright_samtools: staging/share/doc/samtools/copyright
 copyright_htslib: staging/share/doc/htslib/copyright
@@ -362,6 +382,7 @@ copyright_bzip2:  staging/share/doc/bzip2/copyright
 copyright_xz: staging/share/doc/xz/copyright
 copyright_libdeflate: staging/share/doc/libdeflate/copyright
 copyright_ncurses: staging/share/doc/ncurses/copyright
+copyright_gsl: staging/share/doc/gsl/copyright
 copyright_libcurl: staging/share/doc/libcurl/copyright
 copyright_gmp: staging/share/doc/gmp/copyright
 copyright_nettle: staging/share/doc/nettle/copyright
@@ -400,6 +421,10 @@ staging/share/doc/libdeflate/copyright: $(sources_libdeflate)/COPYING
 staging/share/doc/ncurses/copyright: $(sources_ncurses)/COPYING
 	mkdir -p staging/share/doc/ncurses && \
 	cp $(sources_ncurses)/COPYING $@
+
+staging/share/doc/gsl/copyright: $(sources_gsl)/COPYING
+	mkdir -p staging/share/doc/gsl && \
+	cp $(sources_gsl)/COPYING $@
 
 staging/share/doc/libcurl/copyright: $(sources_curl)/COPYING
 	mkdir -p staging/share/doc/libcurl && \
