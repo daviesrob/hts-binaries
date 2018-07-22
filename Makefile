@@ -405,7 +405,7 @@ staging/share/doc/bcftools/copyright: $(sources_bcftools)/LICENSE
 
 staging/share/doc/zlib/copyright: $(sources_zlib)/README
 	mkdir -p staging/share/doc/zlib && \
-	perl -lne 'if (/^Acknowledgments::/) { $$p = 1; } if ($$p) { print; } if (/\s+jloup@gzip\.org\s+madler@alumni\.caltech\.edu/) { $$p = 0; }' $(sources_zlib)/README > $@
+	perl -lne 'if (/^Acknowledgments:/) { $$p = 1; } if ($$p) { print; } if (/\s+jloup\@gzip\.org\s+madler\@alumni\.caltech\.edu/) { $$p = 0; }' $(sources_zlib)/README > $@
 
 staging/share/doc/bzip2/copyright: $(sources_bzip2)/LICENSE
 	mkdir -p staging/share/doc/bzip2 && \
