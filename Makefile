@@ -57,8 +57,8 @@ wrapper_ldflags = -Wl,--wrap=memcpy \
 wrappers/libcurl/libcurl.a: wrappers/libcurl/libcurl_wrap.o
 	$(AR) -rc $@ $^
 
-wrappers/libcurl/libcurl_wrap.o: wrappers/libcurl/libcurl_wrap.c wrappers/libcurl/curl/curl.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -Iwrappers/libcurl -fpic -c -o $@ $<
+wrappers/libcurl/libcurl_wrap.o: wrappers/libcurl/libcurl_wrap.c wrappers/libcurl/curl/curl.h built_deps/lib/libcurl.so
+	$(CC) $(CFLAGS) $(CPPFLAGS) -Iwrappers/libcurl -Ibuilt_deps/include -fpic -c -o $@ $<
 
 # Sources in submodules
 # Create some variables for the source directories
@@ -228,8 +228,8 @@ built_deps/lib/libgmp.a: $(sources_gmp)/configure
 built_deps/lib/libnettle.a: $(sources_nettle)/configure built_deps/lib/libgmp.a
 	cd $(sources_nettle) && \
 	./configure --disable-shared --prefix=$$(pwd -P)/../../built_deps \
-	            CPPFLAGS="-I$$(pwd -P)/../../built_deps" \
-	            LDFLAGS="-L$$(pwd -P)/../../built_deps" \
+	            CPPFLAGS="-I$(abs_built_deps)/include" \
+	            LDFLAGS="-L$(abs_built_deps)/lib" \
 	            CFLAGS="-g -O3 -fpic" && \
 	$(MAKE) clean && \
 	$(MAKE) && \
@@ -313,7 +313,7 @@ staging/lib/libhts.a: $(sources_htslib)/configure \
 	cd $(sources_htslib) && \
 	$(MAKE) distclean && \
 	./configure CFLAGS='-g -O3 -Wall -fpic' \
-	            CPPFLAGS='-I../zlib -I../libdeflate -I../../$(sources_bzip2) -I../../$(sources_xz) -I../../wrappers/libcurl -I../../wrappers/crypto -I../../built-deps/include' \
+	            CPPFLAGS='-I../zlib -I../libdeflate -I../../$(sources_bzip2) -I../../$(sources_xz) -I../../wrappers/libcurl -I../../wrappers/crypto -I../../built_deps/include' \
 	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../libdeflate -L../../$(sources_bzip2) -L../../$(sources_xz) $(wrapper_ldflags) -L../../wrappers/libcurl -L../../wrappers/crypto -L../../built_deps/lib -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a -Wl,--gc-sections' \
                     LIBS='-lcrypto -lnettle -lcurl -lglibc_wrap -ldl' \
                     --prefix="$$(pwd -P)/../../staging" && \
@@ -332,11 +332,12 @@ $(sources_samtools)/configure: $(sources_samtools)/configure.ac
 staging/bin/samtools: $(sources_samtools)/configure \
                       built_deps/lib/libncurses.a \
                       staging/lib/libhts.a \
-                      wrappers/glibc/libglibc_wrap.a
+                      wrappers/glibc/libglibc_wrap.a \
+                      wrappers/crypto/libcrypto.a
 	cd $(sources_samtools) && \
 	$(MAKE) distclean && \
 	./configure CPPFLAGS='-I../zlib -I../../built_deps/include' \
-	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--gc-sections' \
+	            LDFLAGS='-L../../wrappers/glibc -L../../wrappers/crypto -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--gc-sections' \
                     LIBS='-lcrypto -lnettle -lncurses -lglibc_wrap -ldl' \
                     --with-ncurses \
                     --prefix="$$(pwd -P)/../../staging" && \
@@ -360,12 +361,13 @@ staging/bin/bcftools: $(sources_bcftools)/configure \
                       staging/lib/libhts.a \
 	              built_deps/lib/libgsl.a \
                       wrappers/glibc/libglibc_wrap.a \
+                      wrappers/crypto/libcrypto.a \
 	              wrappers/bcftools-plugin/liblocate_plugins.a \
 	              wrappers/bcftools-plugin/locate_plugins.h
 	cd $(sources_bcftools) && \
 	$(MAKE) distclean && \
 	./configure CPPFLAGS='-I../zlib -I../../built_deps/include -include ../../wrappers/bcftools-plugin/locate_plugins.h' \
-	            LDFLAGS='-L../../wrappers/glibc -L../../wrappers/bcftools-plugin -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a:liblocate_plugins.a -Wl,--gc-sections' \
+	            LDFLAGS='-L../../wrappers/glibc -L../../wrappers/crypto -L../../wrappers/bcftools-plugin -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a:liblocate_plugins.a -Wl,--gc-sections' \
                     LIBS='-lm -lcrypto -lnettle -llocate_plugins -lglibc_wrap -ldl' \
 	            --enable-libgsl --with-cblas=gslcblas \
                     --prefix="$$(pwd -P)/../../staging" && \
