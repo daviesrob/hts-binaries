@@ -69,19 +69,19 @@ sources_samtools = sources/samtools
 sources_bcftools = sources/bcftools
 
 $(sources_zlib)/configure $(sources_zlib)/README:
-	git submodule update $(sources_zlib)
+	git submodule update --init $(sources_zlib)
 
 $(sources_libdeflate)/Makefile $(sources_libdeflate)/COPYING:
-	git submodule update $(sources_libdeflate)
+	git submodule update --init $(sources_libdeflate)
 
 $(sources_htslib)/configure.ac $(sources_htslib)/LICENSE:
-	git submodule update $(sources_htslib)
+	git submodule update --init $(sources_htslib)
 
 $(sources_samtools)/configure.ac $(sources_samtools)/LICENSE:
-	git submodule update $(sources_samtools)
+	git submodule update --init $(sources_samtools)
 
 $(sources_bcftools)/configure.ac $(sources_bcftools)/LICENSE:
-	git submodule update $(sources_bcftools)
+	git submodule update --init $(sources_bcftools)
 
 # Sources from release tar files
 # Version numbers to expect
