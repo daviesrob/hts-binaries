@@ -245,6 +245,8 @@ built_deps/lib/libgnutls.a: $(sources_gnutls)/configure built_deps/lib/libnettle
 	            --with-included-libtasn1 --with-included-unistring \
 	            --without-idn --without-libidn2 \
 	            --enable-static --disable-shared \
+	            --without-default-trust-store-file \
+	            --without-default-trust-store-dir \
 	            --prefix=$(abs_built_deps) \
 	            CFLAGS='-g -O3 -fpic' \
 	            CPPFLAGS='-I$(abs_built_deps)/include' \
@@ -265,12 +267,14 @@ built_deps/lib/libcurl.so: $(sources_curl)/configure \
 	            --disable-imap --disable-smb --disable-smtp \
 	            --disable-manual --enable-ipv6 --disable-versioned-symbols \
 	            --enable-threaded-resolver --enable-pthreads \
-	            --disable-verbose --disable-sspi --disable-ntlm-wb \
+	            --enable-verbose --disable-sspi --disable-ntlm-wb \
 	            --disable-unix-sockets --without-brotli --without-gssapi \
 	            --without-libpsl --without-libmetalink \
 	            --without-libssh2 --without-libssh --without-librtmp \
 	            --without-nghttp2 --with-zlib=$(abs_built_deps) \
 	            --without-ssl  --with-gnutls=$(abs_built_deps) \
+	            --with-ca-bundle=/etc/pki/tls/certs/ca-bundle.crt \
+	            --with-ca-path=/etc/ssl/certs \
 	            --prefix=$(abs_built_deps) \
 	            CPPFLAGS='-I$(abs_built_deps)/include' \
 	            LDFLAGS='-L$(abs_built_deps)/lib '-L$$(pwd -P)'/../../wrappers/glibc $(wrapper_ldflags)' \

@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <dlfcn.h>
 #define NO_REDIRECT_CURL_FUNCS
 #include <curl/curl.h>
@@ -66,7 +69,7 @@ CURLSHcode (*indirect_curl_share_cleanup)(CURLSH *) = NULL;
 #define RESOLVE(NAME) *(void **) (&indirect_##NAME) = dlsym(libcurl, #NAME); \
   if (!indirect_##NAME) goto fail
 
-int try_load(const char *so_name) {
+static int try_load(const char *so_name) {
     if (!indirect_curl_global_init) {
         libcurl = dlopen(so_name, RTLD_LAZY|RTLD_LOCAL);
         if (!libcurl) return -1;
@@ -100,6 +103,41 @@ int try_load(const char *so_name) {
     return -1;
 }
 
+const static char *find_ca_certs_file() {
+    /*
+      Annoyingly, certificates aren't stored in a standard location, and
+      libraries only allow a single location to be set.  So instead of
+      having a default path to find these, we need to go hunting for them.
+
+      For more information, see:
+      https://www.happyassassin.net/2015/01/12/a-note-about-ssltls-trusted-certificate-stores-and-platforms/
+
+      This list is a combination of the search lists used by the gnutls and
+      libcurl configure scripts.
+     */
+
+    const static char *locations[] = {
+        "/etc/ssl/certs/ca-certificates.crt",
+        "/etc/pki/tls/certs/ca-bundle.crt",
+        "/etc/pki/tls/cert.pem",
+        "/usr/share/ssl/certs/ca-bundle.crt",
+        "/usr/local/share/certs/ca-root-nss.crt",
+        "/etc/ssl/cert.pem",
+        "/etc/ssl/ca-bundle.pem"
+    };
+    const size_t num_locs = sizeof(locations) / sizeof(locations[0]);
+    size_t i;
+    for (i = 0; i < num_locs; i++) {
+        int fd = open(locations[i], O_RDONLY);
+        if (fd >= 0) {
+            close(fd);
+            return locations[i];
+            break;
+        }
+    }
+    return NULL;
+}
+
 CURLcode curl_global_init(long flags) {
     int not_loaded = -1;
     // Usual name for libcurl; openssl version on debian-based systems
@@ -107,8 +145,16 @@ CURLcode curl_global_init(long flags) {
     // Gnutls version on debian-based systems
     if (not_loaded) not_loaded = try_load("libcurl-gnutls.so.4");
     // Fallback libcurl, included in the package
-    if (not_loaded) not_loaded = try_load("${ORIGIN}/../lib/fallback/libcurl.so");
-    // Give up is not loaded at this point
+    if (not_loaded) {
+        char *ca_bundle = NULL;
+        not_loaded = try_load("${ORIGIN}/../lib/fallback/libcurl.so");
+        if (getenv("CURL_CA_BUNDLE") == NULL) {
+            ca_bundle = find_ca_certs_file();
+            if (ca_bundle)
+                setenv("CURL_CA_BUNDLE", ca_bundle, 0);
+        }
+    }
+    // Give up if not loaded at this point
     if (not_loaded) return CURLE_FAILED_INIT;
 
     return indirect_curl_global_init(flags);
