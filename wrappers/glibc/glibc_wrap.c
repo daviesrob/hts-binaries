@@ -24,6 +24,9 @@ void *__wrap_memcpy(void *dest, const void *src, size_t n) {
   It also gets redirected to __isoc99_scanf() by stdio.h (similarly for
   fscanf(), sscanf() etc.)
  */
+extern int _vscanf_2_2_5(const char *format, va_list ap);
+extern int _vsscanf_2_2_5(const char *str, const char *format, va_list ap);
+extern int _vfscanf_2_2_5(FILE *stream, const char *format, va_list ap);
 asm(".symver _vscanf_2_2_5, vscanf@GLIBC_2.2.5");
 asm(".symver _vsscanf_2_2_5, vsscanf@GLIBC_2.2.5");
 asm(".symver _vfscanf_2_2_5, vfscanf@GLIBC_2.2.5");
@@ -65,6 +68,7 @@ int __wrap_fscanf(FILE *stream, const char *format, ...) {
     va_start(args, format);
     res = _vfscanf_2_2_5(stream, format, args);
     va_end(args);
+    return res;
 }
 int __wrap___isoc99_fscanf(FILE *stream, const char *format, ...) {
     va_list args;
@@ -72,6 +76,7 @@ int __wrap___isoc99_fscanf(FILE *stream, const char *format, ...) {
     va_start(args, format);
     res = _vfscanf_2_2_5(stream, format, args);
     va_end(args);
+    return res;
 }
 
 /*
@@ -101,6 +106,7 @@ void __wrap___stack_chk_fail(void) {
 /*
   __vasprintf_chk appeared as part of the stack protection in glibc 2.8
 */
+extern int _vasprintf_2_2_5(char **strp, const char *fmt, va_list ap);
 asm(".symver _vasprintf_2_2_5, vasprintf@GLIBC_2.2.5");
 int __wrap___vasprintf_chk(char **strp, int flags_ignored, const char *fmt,
                            va_list args) {
