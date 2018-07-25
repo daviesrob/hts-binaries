@@ -36,14 +36,14 @@ clean: clean-staging
 	cd $(sources_bcftools) && git clean -f -d -q -x && git reset --hard
 
 # Area to put things that we've built
-built_deps/lib:
-	mkdir -p built_deps/lib
+built_deps/lib/.made:
+	mkdir -p built_deps/lib && touch $@
 
-built_deps/include:
-	mkdir -p built_deps/include
+built_deps/include/.made:
+	mkdir -p built_deps/include && touch $@
 
 # Wrappers to deal with glibc versioned symbols
-built_deps/lib/libglibc_wrap.a: wrappers/glibc/libglibc_wrap.a built_deps/lib
+built_deps/lib/libglibc_wrap.a: wrappers/glibc/libglibc_wrap.a built_deps/lib/.made
 	cp -f wrappers/glibc/libglibc_wrap.a $@
 
 wrappers/glibc/libglibc_wrap.a: wrappers/glibc/glibc_wrap.o wrappers/glibc/glibm_wrap.o
@@ -191,7 +191,7 @@ $(sources_zlib)/libz.a built_deps/lib/libz.a: $(sources_zlib)/configure
 	$(MAKE) install
 
 # Build libdeflate.a
-built_deps/lib/libdeflate.a: $(sources_libdeflate)/Makefile built_deps/lib built_deps/include
+built_deps/lib/libdeflate.a: $(sources_libdeflate)/Makefile built_deps/lib/.made built_deps/include/.made
 	cd $(sources_libdeflate) && \
 	$(MAKE) clean && \
 	$(MAKE) libdeflate.a CFLAGS='$(CFLAGS) $(PIC)' && \
@@ -210,7 +210,7 @@ built_deps/lib/liblzma.a: $(sources_xz)/configure
 	$(MAKE) install
 
 # Build libbz2.a
-built_deps/lib/libbz2.a: $(sources_bzip2)/Makefile built_deps/lib built_deps/include
+built_deps/lib/libbz2.a: $(sources_bzip2)/Makefile built_deps/lib/.made built_deps/include/.made
 	cd $(sources_bzip2) && \
 	$(MAKE) CFLAGS='$(CFLAGS) $(PIC) -D_FILE_OFFSET_BITS=64' && \
 	cp -f libbz2.a $(abs_built_deps)/lib/ && \
