@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <dlfcn.h>
 #define NO_REDIRECT_CURL_FUNCS
@@ -146,7 +147,7 @@ CURLcode curl_global_init(long flags) {
     if (not_loaded) not_loaded = try_load("libcurl-gnutls.so.4");
     // Fallback libcurl, included in the package
     if (not_loaded) {
-        char *ca_bundle = NULL;
+        const char *ca_bundle = NULL;
         not_loaded = try_load("${ORIGIN}/../lib/fallback/libcurl.so");
         if (getenv("CURL_CA_BUNDLE") == NULL) {
             ca_bundle = find_ca_certs_file();
