@@ -35,7 +35,17 @@ clean: clean-staging
 	cd $(sources_samtools) && git clean -f -d -q -x && git reset --hard
 	cd $(sources_bcftools) && git clean -f -d -q -x && git reset --hard
 
+# Area to put things that we've built
+built_deps/lib:
+	mkdir -p built_deps/lib
+
+built_deps/include:
+	mkdir -p built_deps/include
+
 # Wrappers to deal with glibc versioned symbols
+built_deps/lib/libglibc_wrap.a: wrappers/glibc/libglibc_wrap.a built_deps/lib
+	cp -f wrappers/glibc/libglibc_wrap.a $@
+
 wrappers/glibc/libglibc_wrap.a: wrappers/glibc/glibc_wrap.o wrappers/glibc/glibm_wrap.o
 	$(AR) -rc $@ $^
 
@@ -181,25 +191,30 @@ $(sources_zlib)/libz.a built_deps/lib/libz.a: $(sources_zlib)/configure
 	$(MAKE) install
 
 # Build libdeflate.a
-$(sources_libdeflate)/libdeflate.a: $(sources_libdeflate)/Makefile
+built_deps/lib/libdeflate.a: $(sources_libdeflate)/Makefile built_deps/lib built_deps/include
 	cd $(sources_libdeflate) && \
 	$(MAKE) clean && \
-	$(MAKE) libdeflate.a CFLAGS='$(CFLAGS) $(PIC)'
+	$(MAKE) libdeflate.a CFLAGS='$(CFLAGS) $(PIC)' && \
+	cp -f libdeflate.a $(abs_built_deps)/lib/ && \
+	cp -f libdeflate.h $(abs_built_deps)/include/
 
 # Build liblzma.a
-$(sources_xz)/liblzma.a: $(sources_xz)/configure
+built_deps/lib/liblzma.a: $(sources_xz)/configure
 	cd $(sources_xz) && \
 	./configure --disable-xz --disable-xzdec --disable-lzmadec \
 	   --disable-lzmainfo --disable-lzma-links --disable-scripts \
-	   --disable-doc --disable-shared CFLAGS='$(CFLAGS) $(PIC)' && \
+	   --disable-doc --disable-shared --prefix=$(abs_built_deps) \
+	   CFLAGS='$(CFLAGS) $(PIC)' && \
 	$(MAKE) clean && \
 	$(MAKE) && \
-	cp -av src/liblzma/.libs/liblzma.a ./liblzma.a
+	$(MAKE) install
 
 # Build libbz2.a
-$(sources_bzip2)/libbz2.a: $(sources_bzip2)/Makefile
+built_deps/lib/libbz2.a: $(sources_bzip2)/Makefile built_deps/lib built_deps/include
 	cd $(sources_bzip2) && \
-	$(MAKE) CFLAGS='$(CFLAGS) $(PIC) -D_FILE_OFFSET_BITS=64'
+	$(MAKE) CFLAGS='$(CFLAGS) $(PIC) -D_FILE_OFFSET_BITS=64' && \
+	cp -f libbz2.a $(abs_built_deps)/lib/ && \
+	cp -f bzlib.h $(abs_built_deps)/include/
 
 # Build libcurses.a
 built_deps/lib/libncurses.a: $(sources_ncurses)/configure
@@ -261,7 +276,7 @@ built_deps/lib/libgnutls.a: $(sources_gnutls)/configure built_deps/lib/libnettle
 built_deps/lib/libcurl.so: $(sources_curl)/configure \
                            built_deps/lib/libz.a \
                            built_deps/lib/libgnutls.a \
-                           wrappers/glibc/libglibc_wrap.a
+                           built_deps/lib/libglibc_wrap.a
 	cd $(sources_curl) && \
 	./configure --enable-symbol-hiding --disable-ares --enable-rt \
 	            --disable-static --disable-file --disable-ldap \
@@ -280,17 +295,16 @@ built_deps/lib/libcurl.so: $(sources_curl)/configure \
 	            --with-ca-path=/etc/ssl/certs \
 	            --prefix=$(abs_built_deps) \
 	            CPPFLAGS='-I$(abs_built_deps)/include' \
-	            LDFLAGS='-L$(abs_built_deps)/lib '-L$$(pwd -P)'/../../wrappers/glibc $(wrapper_ldflags)' \
+	            LDFLAGS='-L$(abs_built_deps)/lib $(wrapper_ldflags)' \
 	            LIBS='-lnettle -lhogweed -lgmp -lglibc_wrap' && \
 	$(MAKE) clean && \
 	$(MAKE) && \
 	$(MAKE) install
 
 # Fallback libcurl
-staging/lib/fallback/libcurl.so: built_deps/lib/libcurl.so
+staging/lib/fallback/libcurl.so.4: built_deps/lib/libcurl.so
 	mkdir -p staging/lib/fallback && \
-	cp built_deps/lib/libcurl.so* staging/lib/fallback && \
-	touch $@
+	cp -f built_deps/lib/libcurl.so.4 $@
 
 # OpenSSL replacement
 # As we're building nettle (used by gnutls) for libcurl, we may as well use it
@@ -308,20 +322,20 @@ $(sources_htslib)/configure: $(sources_htslib)/configure.ac
 	autoheader
 
 staging/lib/libhts.a: $(sources_htslib)/configure \
-                      $(sources_bzip2)/libbz2.a \
-                      $(sources_xz)/liblzma.a \
-                      $(sources_libdeflate)/libdeflate.a \
-                      $(sources_zlib)/libz.a \
-                      wrappers/glibc/libglibc_wrap.a \
                       wrappers/libcurl/libcurl.a \
                       wrappers/crypto/libcrypto.a \
+                      built_deps/lib/libglibc_wrap.a \
+                      built_deps/lib/libbz2.a \
+                      built_deps/lib/liblzma.a \
+                      built_deps/lib/libdeflate.a \
+                      built_deps/lib/libz.a \
                       built_deps/lib/libcurl.so \
                       built_deps/lib/libnettle.a
 	cd $(sources_htslib) && \
 	$(MAKE) distclean && \
 	./configure CFLAGS='$(CFLAGS) $(PIC)' \
-	            CPPFLAGS='-I../zlib -I../libdeflate -I../../$(sources_bzip2) -I../../$(sources_xz) -I../../wrappers/libcurl -I../../wrappers/crypto -I../../built_deps/include' \
-	            LDFLAGS='-L../../wrappers/glibc -L../zlib -L../libdeflate -L../../$(sources_bzip2) -L../../$(sources_xz) $(wrapper_ldflags) -L../../wrappers/libcurl -L../../wrappers/crypto -L../../built_deps/lib -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a -Wl,--gc-sections' \
+	            CPPFLAGS='-I../../wrappers/libcurl -I../../wrappers/crypto -I../../built_deps/include' \
+	            LDFLAGS='$(wrapper_ldflags) -L../../wrappers/libcurl -L../../wrappers/crypto -L../../built_deps/lib -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a -Wl,--gc-sections' \
                     LIBS='-lcrypto -lnettle -lcurl -lglibc_wrap -ldl' \
                     --prefix="$(abs_staging)" && \
 	$(MAKE) && \
@@ -337,15 +351,15 @@ $(sources_samtools)/configure: $(sources_samtools)/configure.ac
 # curses detection fails (it puts -lncurses after -lglibc_wrap so the
 # wrapper symbols can't be found)
 staging/bin/samtools: $(sources_samtools)/configure \
-                      built_deps/lib/libncurses.a \
                       staging/lib/libhts.a \
-                      wrappers/glibc/libglibc_wrap.a \
+                      built_deps/lib/libncurses.a \
+                      built_deps/lib/libglibc_wrap.a \
                       wrappers/crypto/libcrypto.a
 	cd $(sources_samtools) && \
 	$(MAKE) distclean && \
 	./configure CFLAGS='$(CFLAGS) $(PIC)' \
-	            CPPFLAGS='-I../zlib -I../../built_deps/include' \
-	            LDFLAGS='-L../../wrappers/glibc -L../../wrappers/crypto -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--gc-sections' \
+	            CPPFLAGS='-I../../built_deps/include' \
+	            LDFLAGS='-L../../wrappers/crypto -L../../built_deps/lib $(wrapper_ldflags) -Wl,--gc-sections' \
                     LIBS='-lcrypto -lnettle -lncurses -lglibc_wrap -ldl' \
                     --with-ncurses \
                     --prefix="$(abs_staging)" && \
@@ -368,15 +382,15 @@ $(sources_bcftools)/configure: $(sources_bcftools)/configure.ac
 staging/bin/bcftools: $(sources_bcftools)/configure \
                       staging/lib/libhts.a \
 	              built_deps/lib/libgsl.a \
-                      wrappers/glibc/libglibc_wrap.a \
+                      built_deps/lib/libglibc_wrap.a \
                       wrappers/crypto/libcrypto.a \
 	              wrappers/bcftools-plugin/liblocate_plugins.a \
 	              wrappers/bcftools-plugin/locate_plugins.h
 	cd $(sources_bcftools) && \
 	$(MAKE) distclean && \
 	./configure CFLAGS='$(CFLAGS) $(PIC)' \
-	            CPPFLAGS='-I../zlib -I../../built_deps/include -include ../../wrappers/bcftools-plugin/locate_plugins.h' \
-	            LDFLAGS='-L../../wrappers/glibc -L../../wrappers/crypto -L../../wrappers/bcftools-plugin -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a:liblocate_plugins.a -Wl,--gc-sections' \
+	            CPPFLAGS='-I../../built_deps/include -include ../../wrappers/bcftools-plugin/locate_plugins.h' \
+	            LDFLAGS='-L../../wrappers/crypto -L../../wrappers/bcftools-plugin -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a:liblocate_plugins.a -Wl,--gc-sections' \
                     LIBS='-lm -lcrypto -lnettle -llocate_plugins -lglibc_wrap -ldl' \
 	            --enable-libgsl --with-cblas=gslcblas \
                     --prefix="$(abs_staging)" && \
@@ -404,15 +418,15 @@ copyright_gnutls: staging/share/doc/gnutls/copyright
 
 staging/share/doc/samtools/copyright: $(sources_samtools)/LICENSE
 	mkdir -p staging/share/doc/samtools && \
-	cp $(sources_samtools)/LICENSE $@
+	cp -f $(sources_samtools)/LICENSE $@
 
 staging/share/doc/htslib/copyright: $(sources_htslib)/LICENSE
 	mkdir -p staging/share/doc/htslib && \
-	cp $(sources_htslib)/LICENSE $@
+	cp -f $(sources_htslib)/LICENSE $@
 
 staging/share/doc/bcftools/copyright: $(sources_bcftools)/LICENSE
 	mkdir -p staging/share/doc/bcftools && \
-	cp $(sources_bcftools)/LICENSE $@
+	cp -f $(sources_bcftools)/LICENSE $@
 
 staging/share/doc/zlib/copyright: $(sources_zlib)/README
 	mkdir -p staging/share/doc/zlib && \
@@ -420,7 +434,7 @@ staging/share/doc/zlib/copyright: $(sources_zlib)/README
 
 staging/share/doc/bzip2/copyright: $(sources_bzip2)/LICENSE
 	mkdir -p staging/share/doc/bzip2 && \
-	cp $(sources_bzip2)/LICENSE $@
+	cp -f $(sources_bzip2)/LICENSE $@
 
 staging/share/doc/xz/copyright: $(sources_xz)/COPYING
 	mkdir -p staging/share/doc/xz && \
@@ -430,19 +444,19 @@ staging/share/doc/xz/copyright: $(sources_xz)/COPYING
 
 staging/share/doc/libdeflate/copyright: $(sources_libdeflate)/COPYING
 	mkdir -p staging/share/doc/libdeflate && \
-	cp $(sources_libdeflate)/COPYING $@
+	cp -f $(sources_libdeflate)/COPYING $@
 
 staging/share/doc/ncurses/copyright: $(sources_ncurses)/COPYING
 	mkdir -p staging/share/doc/ncurses && \
-	cp $(sources_ncurses)/COPYING $@
+	cp -f $(sources_ncurses)/COPYING $@
 
 staging/share/doc/gsl/copyright: $(sources_gsl)/COPYING
 	mkdir -p staging/share/doc/gsl && \
-	cp $(sources_gsl)/COPYING $@
+	cp -f $(sources_gsl)/COPYING $@
 
 staging/share/doc/libcurl/copyright: $(sources_curl)/COPYING
 	mkdir -p staging/share/doc/libcurl && \
-	cp $(sources_curl)/COPYING $@
+	cp -f $(sources_curl)/COPYING $@
 
 staging/share/doc/gmp/copyright: $(sources_gmp)/README
 	mkdir -p staging/share/doc/gmp && \
@@ -476,7 +490,7 @@ staging/share/doc/gnutls/copyright: $(sources_gnutls)/LICENSE $(sources_nettle)/
 staging/README.$(target).txt : texts/readme.$(target).template \
                                staging/bin/samtools \
                                staging/bin/bcftools
-	cp texts/readme.$(target).template $@.tmp && \
+	cp -f texts/readme.$(target).template $@.tmp && \
 	printf '\nCurrent build system revision:\n' >> $@.tmp && \
 	git rev-parse --verify HEAD >> $@.tmp && \
 	git status -s >> $@.tmp && \
@@ -499,7 +513,7 @@ staging/README.$(target).txt : texts/readme.$(target).template \
 $(tar_root).tgz: staging/lib/libhts.a \
                  staging/bin/samtools \
                  staging/bin/bcftools \
-                 staging/lib/fallback/libcurl.so \
+                 staging/lib/fallback/libcurl.so.4 \
                  staging/README.$(target).txt \
                  copyright
 	tar -cvzf $@ --show-transformed-names \
