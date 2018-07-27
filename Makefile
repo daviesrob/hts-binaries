@@ -522,7 +522,49 @@ $(tar_root).tgz: staging/lib/libhts.a \
 	    --exclude=staging/lib/pkgconfig \
 	    --mode=og-w --owner=root --group=root staging
 
+# Tests.  Borrow the existing test scripts for samtools and bcftools, with
+# a bit of hackery to get them to run the correct samtools/bcftools binary.
+tests/samtools/test/test.pl: $(sources_samtools)/configure.ac
+	mkdir -p tests/samtools/test && \
+	for i in addrprg bam2fq bedcov collate dat fixmate idxstats markdup merge quickcheck reheader sort stat ; do \
+	  rm -f tests/samtools/test/$$i && \
+          ln -s ../../../$(sources_samtools)/test/$$i tests/samtools/test/$$i ; \
+	done && \
+	printf '#!/bin/sh\nsamtools "$$@"\n' > tests/samtools/samtools && \
+	chmod a+x tests/samtools/samtools && \
+	cp -f $(sources_samtools)/test/test.pl tests/samtools/test/test.pl
+
+test-samtools: tests/samtools/test/test.pl staging/bin/samtools
+	cd tests/samtools/ && \
+	PATH="$(abs_staging)/bin:$$PATH" REF_PATH=: ./test/test.pl -t /tmp/u51TOMVJsj --exec bgzip='$(abs_staging)/bin/bgzip'
+
+tests/bcftools/test/test.pl: $(sources_bcftools)/configure.ac
+	mkdir -p tests/bcftools/misc && \
+	mkdir -p tests/bcftools/test && \
+	( cd $(sources_bcftools)/test && \
+	  for i in `/bin/ls -1 | grep -v test.pl` ; do \
+	    rm -f ../../../tests/bcftools/test/$$i && \
+            ln -s ../../../$(sources_bcftools)/test/$$i ../../../tests/bcftools/test/ ; \
+	  done ) && \
+	printf '#!/bin/sh\nunset BCFTOOLS_PLUGINS\nbcftools "$$@"\n' > tests/bcftools/bcftools && \
+	printf '#!/bin/sh\nplot-vcfstats "$$@"\n' > tests/bcftools/misc/plot-vcfstats && \
+	chmod a+x tests/bcftools/bcftools tests/bcftools/misc/plot-vcfstats && \
+	cp $(sources_bcftools)/test/test.pl tests/bcftools/test/
+
+test-bcftools: tests/bcftools/test/test.pl
+	cd tests/bcftools && \
+	PATH="$(abs_staging)/bin:$$PATH" REF_PATH=: ./test/test.pl --plugins -t /tmp/JRjxzsDD69 --exec bgzip='$(abs_staging)/bin/bgzip' --exec tabix='$(abs_staging)/bin/tabix'
+
+test: test-samtools test-bcftools
+
+hts-binaries-test.tgz: tests/samtools/test/test.pl tests/bcftools/test/test.pl
+	tar -cvhzf $@.tmp \
+	    --transform 's,^tests,hts-binaries-test,' \
+	    --mode=og-w --owner=root --group=root tests && \
+	mv $@.tmp $@
+
 .PHONY: all clean clean-staging clean-tarfile \
   copyright copyright_samtools copyright_htslib copyright_bcftools \
   copyright_zlib copyright_bzip2 copyright_xz copyright_libdeflate \
-  copyright_ncurses
+  copyright_ncurses \
+  test-samtools test-bcftools test
