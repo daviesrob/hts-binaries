@@ -17,6 +17,9 @@ sources/gsl-*/
 sources/gmp-*/
 sources/gnutls-*/
 sources/nettle-*/
+tests/bcftools
+tests/samtools
 built_deps/
 staging/
 htstools-x86_64-linux-glibc.tgz
+hts-binaries-test.tgz
