@@ -7,6 +7,7 @@ tar_root = htstools-$(target)
 # some directories
 abs_built_deps=$(CURDIR)/built_deps
 abs_staging=$(CURDIR)/staging
+abs_wrappers=$(CURDIR)/wrappers
 
 PIC = -fpic
 CFLAGS=-g -O3 -Wall
@@ -273,10 +274,16 @@ built_deps/lib/libgnutls.a: $(sources_gnutls)/configure built_deps/lib/libnettle
 	$(MAKE) install
 
 # Build libcurl
+# Constructor to inject into our libcurl that tries to find CA bundles in
+# the various locations where they may have been installed.
+wrappers/libcurl/find_ca_files.o: wrappers/libcurl/find_ca_files.c
+	$(CC) $(CFLAGS) $(PIC) $(CPPFLAGS) -c -o $@ $<
+
 built_deps/lib/libcurl.so: $(sources_curl)/configure \
                            built_deps/lib/libz.a \
                            built_deps/lib/libgnutls.a \
-                           built_deps/lib/libglibc_wrap.a
+                           built_deps/lib/libglibc_wrap.a \
+                           wrappers/libcurl/find_ca_files.o
 	cd $(sources_curl) && \
 	./configure --enable-symbol-hiding --disable-ares --enable-rt \
 	            --disable-static --disable-file --disable-ldap \
@@ -291,12 +298,11 @@ built_deps/lib/libcurl.so: $(sources_curl)/configure \
 	            --without-libssh2 --without-libssh --without-librtmp \
 	            --without-nghttp2 --with-zlib=$(abs_built_deps) \
 	            --without-ssl  --with-gnutls=$(abs_built_deps) \
-	            --with-ca-bundle=/etc/pki/tls/certs/ca-bundle.crt \
-	            --with-ca-path=/etc/ssl/certs \
+	            --without-ca-bundle --without-ca-path \
 	            --prefix=$(abs_built_deps) \
 	            CPPFLAGS='-I$(abs_built_deps)/include' \
 	            LDFLAGS='-L$(abs_built_deps)/lib $(wrapper_ldflags)' \
-	            LIBS='-lnettle -lhogweed -lgmp -lglibc_wrap' && \
+	            LIBS='-lnettle -lhogweed -lgmp -lglibc_wrap $(abs_wrappers)/libcurl/find_ca_files.o' && \
 	$(MAKE) clean && \
 	$(MAKE) && \
 	$(MAKE) install
