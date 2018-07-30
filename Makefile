@@ -303,11 +303,17 @@ built_deps/lib/libgnutls.a: $(sources_gnutls)/configure built_deps/lib/libnettle
 wrappers/libcurl/find_ca_files.o: wrappers/libcurl/find_ca_files.c
 	$(CC) $(CFLAGS) $(PIC) $(CPPFLAGS) -c -o $@ $<
 
+# Put the .a file in built_deps as we don't want curl to find our wrapper
+# libcurl.a
+built_deps/lib/libfind_ca_files.a: wrappers/libcurl/find_ca_files.o
+	mkdir -p built_deps/lib && \
+	$(AR) -rc $@ $^
+
 built_deps/lib/libcurl.so: $(sources_curl)/configure \
                            built_deps/lib/libz.a \
                            built_deps/lib/libgnutls.a \
                            built_deps/lib/libglibc_wrap.a \
-                           wrappers/libcurl/find_ca_files.o
+                           built_deps/lib/libfind_ca_files.a
 	cd $(sources_curl) && \
 	./configure --enable-symbol-hiding --disable-ares --enable-rt \
 	            --disable-static --disable-file --disable-ldap \
@@ -326,7 +332,7 @@ built_deps/lib/libcurl.so: $(sources_curl)/configure \
 	            --prefix=$(abs_built_deps) \
 	            CPPFLAGS='-I$(abs_built_deps)/include' \
 	            LDFLAGS='-L$(abs_built_deps)/lib $(wrapper_ldflags)' \
-	            LIBS='-lnettle -lhogweed -lgmp -lglibc_wrap $(abs_wrappers)/libcurl/find_ca_files.o' && \
+	            LIBS='-lnettle -lhogweed -lgmp -lglibc_wrap -lfind_ca_files' && \
 	$(MAKE) clean && \
 	$(MAKE) && \
 	$(MAKE) install
