@@ -45,7 +45,7 @@ unsigned char *HMAC(int algo, const void *key, int key_len,
                     unsigned int *md_len) {
     switch (algo) {
     case HMAC_SHA1: {
-        struct hmac_sha1_ctx ctx = { 0 };
+        struct hmac_sha1_ctx ctx = {{{0}}};
         hmac_sha1_set_key(&ctx, key_len, key);
         hmac_sha1_update(&ctx, n, d);
         hmac_sha1_digest(&ctx, SHA1_DIGEST_SIZE, md);
