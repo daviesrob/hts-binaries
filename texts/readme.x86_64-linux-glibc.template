@@ -4,7 +4,9 @@ Samtools, Bcftools and HTSlib binary distribution
 This package contains a binary distribution of samtools and bcftools
 along with a selection of other programs like tabix and bgzip.  It
 also includes a copy of the htslib library that can be used with a
-number of third-party software.
+number of third-party software.  Most features have been enabled,
+apart from the bcftools perl filters which cannot easily be included
+at the moment.
 
 These binaries are designed to work on x86_64 Linux distributions
 that use the GNU C library (glibc).  Examples include Debian, Ubuntu,
@@ -22,8 +24,8 @@ move them elsewhere.
 Manual pages can be found under the share/man directories (read them with
 `man -l`), and also at https://www.htslib.org/doc
 
-IMPORTANT SECURITY INFORMATION
-==============================
+Support for accessing remote data
+=================================
 
 These programs use libcurl (https://curl.haxx.se) to allow them
 to access files over the internet (http://, https://, ftp://, s3:// and
@@ -43,6 +45,50 @@ To disable the fall-back libcurl, remove the file lib/fallback/libcurl.so.4
 If using the system libcurl causes problems, you can force the included
 one to be used by setting the LD_LIBRARY_PATH environment variable
 to the absolute path of the lib/fallback directory.
+
+TLS Certificates
+================
+
+Libcurl needs a set of trusted certificates so that it can check that it
+is talking to the correct server when making secure (https://) connections.
+If you are using a copy of libcurl on your system then it will use the
+certificates supplied by your operating system distribution to do this.
+
+If you are using the fall-back libcurl, it will try searching a number of
+locations where a certificates file could be installed.  If this fails it
+will be necessary to set the CURL_CA_BUNDLE environment variable to the
+location of an up-to-date certificates file for verification to work.
+By default, HTSlib will refuse to communicate with secure sites that it
+cannot verify.
+
+The usual symptom of certificate problems is that downloading http:// URLs
+works, but using https:// (also s3:// and gcs://) URLs does not.  It is
+likely that the failure is reported as an "Input/output error".  To check
+if it really is a certificate problem, the included `htsfile` program can
+be run in verbose mode to show the verification process:
+
+htsfile -vvvvv <URL>
+
+If you see a message like:
+
+* found 171 certificates in /etc/pki/tls/certs/ca-bundle.crt
+
+then it found a certificates file in the location shown.  If instead you see:
+
+* server certificate verification failed. CAfile: none CRLfile: none
+
+then it was unable to find any certificates.  You will need to set the
+CURL_CA_BUNDLE environment variable to the location of a suitable certificates
+file.
+
+It is not possible to include a certificates file with this distribution as the
+contents change too frequently.  Instead it is recommended that you install
+the certificates package for your operating system distribution (this will
+most likely be called `ca-certificates`).  If that is not possible, a suitable
+file can be downloaded from https://curl.haxx.se/docs/caextract.html as a
+last resort. (If you use this, make sure you honour the request on that page
+to not download the file too frequently, and certainly not more than
+once a day.)
 
 License Summary
 ===============
