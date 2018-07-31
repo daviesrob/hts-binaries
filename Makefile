@@ -436,7 +436,7 @@ staging/bin/bcftools: $(sources_bcftools)/configure \
 copyright: copyright_samtools copyright_htslib copyright_bcftools \
            copyright_zlib copyright_bzip2 copyright_xz copyright_libdeflate \
            copyright_ncurses copyright_libcurl copyright_gmp copyright_nettle \
-           copyright_gnutls copyright_gsl
+           copyright_gnutls copyright_gsl copyright_gnu
 
 copyright_samtools: staging/share/doc/samtools/copyright
 copyright_htslib: staging/share/doc/htslib/copyright
@@ -451,6 +451,10 @@ copyright_libcurl: staging/share/doc/libcurl/copyright
 copyright_gmp: staging/share/doc/gmp/copyright
 copyright_nettle: staging/share/doc/nettle/copyright
 copyright_gnutls: staging/share/doc/gnutls/copyright
+copyright_gnu: staging/share/doc/GNU/copyright.LGPLv2 \
+               staging/share/doc/GNU/copyright.LGPLv3 \
+               staging/share/doc/GNU/copyright.GPLv2 \
+               staging/share/doc/GNU/copyright.GPLv3
 
 staging/share/doc/samtools/copyright: $(sources_samtools)/LICENSE
 	mkdir -p staging/share/doc/samtools && \
@@ -521,6 +525,18 @@ staging/share/doc/gnutls/copyright: $(sources_gnutls)/LICENSE $(sources_nettle)/
 	printf 'The copy of gnutls in this package is distributed under the terms of the\nGNU Lesser General Public License version 3.\n\n' >> $@.tmp && \
 	cat $(sources_nettle)/COPYING.LESSERv3 >> $@.tmp && \
 	mv -f $@.tmp $@
+
+# Copies of GPL variants, included as some dependencies can be licensed under
+# one or more of these.  Obtain them from the copies in gnutls and nettle.
+staging/share/doc/GNU/copyright.LGPLv2: $(sources_gnutls)/LICENSE
+	mkdir -p staging/share/doc/GNU && \
+	cp $(sources_gnutls)/doc/COPYING.LESSER $@
+
+staging/share/doc/GNU/copyright.LGPLv3 staging/share/doc/GNU/copyright.GPLv2 staging/share/doc/GNU/copyright.GPLv3: $(sources_nettle)/nettle.texinfo
+	mkdir -p staging/share/doc/GNU && \
+	cp $(sources_nettle)/COPYINGv2 staging/share/doc/GNU/copyright.GPLv2 && \
+	cp $(sources_nettle)/COPYINGv3 staging/share/doc/GNU/copyright.GPLv3 && \
+	cp sources/nettle-3.4/COPYING.LESSERv3 staging/share/doc/GNU/copyright.LGPLv3
 
 # README file
 staging/README.$(target).txt : texts/readme.$(target).template \
