@@ -555,6 +555,8 @@ staging/README.$(target).txt : texts/readme.$(target).template \
 	printf '\nBuild host : ' >> $@.tmp && \
 	uname -s -r -v -m -o >> $@.tmp && \
 	perl -ne 'if (/^model name/) { s/.*?:\s+//; print "CPU model : $$_"; last; }' /proc/cpuinfo >> $@.tmp && \
+	printf "OS Distribution : " >> $@.tmp && \
+	scripts/get_distrib_name.sh >> $@.tmp && \
 	printf '\nCompiler information (gcc -v):\n' >> $@.tmp && \
 	gcc -v >> $@.tmp 2>&1 && \
 	printf '\nLinker version (ld -v):\n' >> $@.tmp && \
