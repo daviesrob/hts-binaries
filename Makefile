@@ -34,12 +34,13 @@ abs_staging=$(CURDIR)/staging
 abs_wrappers=$(CURDIR)/wrappers
 
 PIC = -fpic
-CFLAGS=-g -O3 -Wall
+DEBUG_CFLAGS=
+CFLAGS=-O3 -Wall
 
 all: $(tar_root).tgz
 
 .c.o:
-	$(CC) $(CFLAGS) $(PIC) $(CPPFLAGS) -c -o $@ $<
+	$(CC) $(DEBUG_CFLAGS) $(CFLAGS) $(PIC) $(CPPFLAGS) -c -o $@ $<
 
 clean-tarfile:
 	-rm -f $(tar_root).tgz
@@ -53,6 +54,7 @@ clean: clean-staging
 	-rm -f wrappers/crypto/*.o wrappers/crypto/*.a
 	-rm -rf sources/xz-*/ sources/bzip2-*/ sources/curl-*/ sources/gsl-*/
 	-rm -rf sources/gmp-*/ sources/nettle-*/ sources/gnutls-*/
+	-rm -rf sources/ncurses-*/
 	-rm -rf built_deps/*
 	cd $(sources_zlib) && git clean -f -d -q -x && git reset --hard
 	cd $(sources_libdeflate) && git clean -f -d -q -x && git reset --hard
@@ -96,7 +98,7 @@ wrappers/libcurl/libcurl.a: wrappers/libcurl/libcurl_wrap.o
 	$(AR) -rc $@ $^
 
 wrappers/libcurl/libcurl_wrap.o: wrappers/libcurl/libcurl_wrap.c wrappers/libcurl/curl/curl.h built_deps/lib/libcurl.so
-	$(CC) $(CFLAGS) $(PIC) $(CPPFLAGS) -Iwrappers/libcurl -Ibuilt_deps/include -c -o $@ $<
+	$(CC) $(DEBUG_CFLAGS) $(CFLAGS) $(PIC) $(CPPFLAGS) -Iwrappers/libcurl -Ibuilt_deps/include -c -o $@ $<
 
 # Sources in submodules
 # Create some variables for the source directories
@@ -210,7 +212,7 @@ $(sources_gnutls)/configure $(sources_gnutls)/LICENSE: sources/$(gnutls_tar_file
 # Build libz.a
 $(sources_zlib)/libz.a built_deps/lib/libz.a: $(sources_zlib)/configure
 	cd $(sources_zlib) && \
-	CFLAGS='$(CFLAGS) $(PIC)' ./configure --static --prefix=$(abs_built_deps) && \
+	CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' ./configure --static --prefix=$(abs_built_deps) && \
 	$(MAKE) clean && \
 	$(MAKE) && \
 	$(MAKE) install
@@ -219,7 +221,7 @@ $(sources_zlib)/libz.a built_deps/lib/libz.a: $(sources_zlib)/configure
 built_deps/lib/libdeflate.a: $(sources_libdeflate)/Makefile built_deps/lib/.made built_deps/include/.made
 	cd $(sources_libdeflate) && \
 	$(MAKE) clean && \
-	$(MAKE) libdeflate.a CFLAGS='$(CFLAGS) $(PIC)' && \
+	$(MAKE) libdeflate.a CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' && \
 	cp -f libdeflate.a $(abs_built_deps)/lib/ && \
 	cp -f libdeflate.h $(abs_built_deps)/include/
 
@@ -229,7 +231,7 @@ built_deps/lib/liblzma.a: $(sources_xz)/configure
 	./configure --disable-xz --disable-xzdec --disable-lzmadec \
 	   --disable-lzmainfo --disable-lzma-links --disable-scripts \
 	   --disable-doc --disable-shared --prefix=$(abs_built_deps) \
-	   CFLAGS='$(CFLAGS) $(PIC)' && \
+	   CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' && \
 	$(MAKE) clean && \
 	$(MAKE) && \
 	$(MAKE) install
@@ -237,21 +239,30 @@ built_deps/lib/liblzma.a: $(sources_xz)/configure
 # Build libbz2.a
 built_deps/lib/libbz2.a: $(sources_bzip2)/Makefile built_deps/lib/.made built_deps/include/.made
 	cd $(sources_bzip2) && \
-	$(MAKE) CFLAGS='$(CFLAGS) $(PIC) -D_FILE_OFFSET_BITS=64' && \
+	$(MAKE) CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC) -D_FILE_OFFSET_BITS=64' && \
 	cp -f libbz2.a $(abs_built_deps)/lib/ && \
 	cp -f bzlib.h $(abs_built_deps)/include/
 
 # Build libcurses.a
 built_deps/lib/libncurses.a: $(sources_ncurses)/configure
 	cd $(sources_ncurses) && \
-	./configure --without-cxx --without-progs --disable-db-install --disable-home-terminfo --enable-const --enable-termcap --without-gpm --with-normal --without-dlsym --without-manpages --without-tests --with-terminfo-dirs=/etc/terminfo:/lib/terminfo:/usr/share/terminfo -with-default-terminfo-dir=/usr/share/terminfo --with-termpath=/etc/termcap:/usr/share/misc/termcap --prefix=$(abs_built_deps) && \
+	./configure --without-cxx --without-progs --disable-db-install \
+	            --disable-home-terminfo --enable-const --enable-termcap \
+	            --without-gpm --with-normal --without-dlsym \
+	            --without-manpages --without-tests \
+	            --with-terminfo-dirs=/etc/terminfo:/lib/terminfo:/usr/share/terminfo \
+	            --with-default-terminfo-dir=/usr/share/terminfo \
+	            --with-termpath=/etc/termcap:/usr/share/misc/termcap \
+	            --prefix=$(abs_built_deps) \
+	            CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' && \
 	$(MAKE) clean && $(MAKE) && $(MAKE) install
 
 # Build libgsl.a
 built_deps/lib/libgsl.a: $(sources_gsl)/configure
 	cd $(sources_gsl) && \
 	./configure --with-pic --enable-static --disable-shared \
-	            --prefix=$(abs_built_deps) && \
+	            --prefix=$(abs_built_deps) \
+	            CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' && \
 	$(MAKE) clean && \
 	$(MAKE) && \
 	$(MAKE) install
@@ -262,9 +273,9 @@ built_deps/lib/libgmp.a: $(sources_gmp)/configure
 	cd $(sources_gmp) && \
 	./configure --enable-fat --disable-shared \
 	            --prefix=$(abs_built_deps) \
-	            CFLAGS='$(CFLAGS) $(PIC)' && \
+	            CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' && \
 	$(MAKE) clean && \
-	$(MAKE) V=1 && \
+	$(MAKE) && \
 	$(MAKE) install
 
 # nettle
@@ -273,7 +284,7 @@ built_deps/lib/libnettle.a: $(sources_nettle)/configure built_deps/lib/libgmp.a
 	./configure --disable-shared --prefix=$(abs_built_deps) \
 	            CPPFLAGS="-I$(abs_built_deps)/include" \
 	            LDFLAGS="-L$(abs_built_deps)/lib" \
-	            CFLAGS="$(CFLAGS) $(PIC)" && \
+	            CFLAGS="$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)" && \
 	$(MAKE) clean && \
 	$(MAKE) && \
 	$(MAKE) install
@@ -282,8 +293,10 @@ built_deps/lib/libnettle.a: $(sources_nettle)/configure built_deps/lib/libgmp.a
 built_deps/lib/libgnutls.a: $(sources_gnutls)/configure built_deps/lib/libnettle.a
 	cd $(sources_gnutls) && \
 	PKG_CONFIG_PATH=$(abs_built_deps)/lib/pkgconfig \
-	./configure --disable-doc --disable-cxx --disable-dtls-srtp-support \
+	./configure --disable-doc --disable-tools --disable-cxx \
+	            --disable-dtls-srtp-support \
 	            --disable-nls --disable-rpath --disable-nls \
+	            --disable-gcc-warnings --disable-libdane \
 	            --disable-guile --without-p11-kit --without-tpm \
 	            --with-included-libtasn1 --with-included-unistring \
 	            --without-idn --without-libidn2 \
@@ -291,7 +304,7 @@ built_deps/lib/libgnutls.a: $(sources_gnutls)/configure built_deps/lib/libnettle
 	            --without-default-trust-store-file \
 	            --without-default-trust-store-dir \
 	            --prefix=$(abs_built_deps) \
-	            CFLAGS='$(CFLAGS) $(PIC)' \
+	            CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I$(abs_built_deps)/include' \
 	            LDFLAGS='-L$(abs_built_deps)/lib' && \
 	$(MAKE) && \
@@ -301,7 +314,7 @@ built_deps/lib/libgnutls.a: $(sources_gnutls)/configure built_deps/lib/libnettle
 # Constructor to inject into our libcurl that tries to find CA bundles in
 # the various locations where they may have been installed.
 wrappers/libcurl/find_ca_files.o: wrappers/libcurl/find_ca_files.c
-	$(CC) $(CFLAGS) $(PIC) $(CPPFLAGS) -c -o $@ $<
+	$(CC) $(DEBUG_CFLAGS) $(CFLAGS) $(PIC) $(CPPFLAGS) -c -o $@ $<
 
 # Put the .a file in built_deps as we don't want curl to find our wrapper
 # libcurl.a
@@ -330,6 +343,7 @@ built_deps/lib/libcurl.so: $(sources_curl)/configure \
 	            --without-ssl  --with-gnutls=$(abs_built_deps) \
 	            --without-ca-bundle --without-ca-path \
 	            --prefix=$(abs_built_deps) \
+	            CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I$(abs_built_deps)/include' \
 	            LDFLAGS='-L$(abs_built_deps)/lib $(wrapper_ldflags)' \
 	            LIBS='-lnettle -lhogweed -lgmp -lglibc_wrap -lfind_ca_files' && \
@@ -346,7 +360,7 @@ staging/lib/fallback/libcurl.so.4: built_deps/lib/libcurl.so
 # As we're building nettle (used by gnutls) for libcurl, we may as well use it
 # for the HMAC() function htslib usually gets from openssl.
 wrappers/crypto/crypto.o: wrappers/crypto/crypto.c built_deps/lib/libgnutls.a
-	$(CC) $(CFLAGS) $(PIC) $(CPPFLAGS) -Ibuilt_deps/include -fpic -c -o $@ $<
+	$(CC) $(DEBUG_CFLAGS) $(CFLAGS) $(PIC) $(CPPFLAGS) -Ibuilt_deps/include -fpic -c -o $@ $<
 
 wrappers/crypto/libcrypto.a: wrappers/crypto/crypto.o
 	$(AR) -rc $@ $^
@@ -369,7 +383,7 @@ staging/lib/libhts.a: $(sources_htslib)/configure \
                       built_deps/lib/libnettle.a
 	cd $(sources_htslib) && \
 	$(MAKE) distclean && \
-	./configure CFLAGS='$(CFLAGS) $(PIC)' \
+	./configure CFLAGS='-g $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I../../wrappers/libcurl -I../../wrappers/crypto -I../../built_deps/include' \
 	            LDFLAGS='$(wrapper_ldflags) -L../../wrappers/libcurl -L../../wrappers/crypto -L../../built_deps/lib -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a -Wl,--gc-sections' \
                     LIBS='-lcrypto -lnettle -lcurl -lglibc_wrap -ldl' \
@@ -393,7 +407,7 @@ staging/bin/samtools: $(sources_samtools)/configure \
                       wrappers/crypto/libcrypto.a
 	cd $(sources_samtools) && \
 	$(MAKE) distclean && \
-	./configure CFLAGS='$(CFLAGS) $(PIC)' \
+	./configure CFLAGS='-g $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I../../built_deps/include' \
 	            LDFLAGS='-L../../wrappers/crypto -L../../built_deps/lib $(wrapper_ldflags) -Wl,--gc-sections' \
                     LIBS='-lcrypto -lnettle -lncurses -lglibc_wrap -ldl' \
@@ -424,7 +438,7 @@ staging/bin/bcftools: $(sources_bcftools)/configure \
 	              wrappers/bcftools-plugin/locate_plugins.h
 	cd $(sources_bcftools) && \
 	$(MAKE) distclean && \
-	./configure CFLAGS='$(CFLAGS) $(PIC)' \
+	./configure CFLAGS='-g $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I../../built_deps/include -include ../../wrappers/bcftools-plugin/locate_plugins.h' \
 	            LDFLAGS='-L../../wrappers/crypto -L../../wrappers/bcftools-plugin -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a:liblocate_plugins.a -Wl,--gc-sections' \
                     LIBS='-lm -lcrypto -lnettle -llocate_plugins -lglibc_wrap -ldl' \
