@@ -28,6 +28,27 @@ target = x86_64-linux-glibc
 # Root directory for the binaries tar file
 tar_root = htstools-$(target)
 
+# Version numbers to expect for sources from tar files
+xz_version = 5.2.4
+bzip2_version = 1.0.6
+ncurses_version = 6.1
+curl_version = 7.61.0
+gsl_version = 2.5
+# Needed for gnutls + dependencies
+gmp_version = 6.1.2
+nettle_version = 3.4
+gnutls_version = 3.5.19
+
+# Upstream source URLs
+xz_upstream_url      = https://www.tukaani.org/xz
+bzip2_upstream_url   = http://bzip.org/$(bzip2_version)
+ncurses_upstream_url = https://invisible-mirror.net/archives/ncurses
+curl_upstream_url    = https://curl.haxx.se/download
+gsl_upstream_url     = https://ftpmirror.gnu.org/gsl
+gmp_upstream_url     = https://gmplib.org/download/gmp
+nettle_upstream_url  = https://ftp.gnu.org/gnu/nettle
+gnutls_upstream_url  = https://www.gnupg.org/ftp/gcrypt/gnutls/v3.5
+
 # some directories
 abs_built_deps=$(CURDIR)/built_deps
 abs_staging=$(CURDIR)/staging
@@ -123,18 +144,6 @@ $(sources_samtools)/configure.ac $(sources_samtools)/LICENSE:
 $(sources_bcftools)/configure.ac $(sources_bcftools)/LICENSE:
 	git submodule update --init $(sources_bcftools)
 
-# Sources from release tar files
-# Version numbers to expect
-xz_version = 5.2.4
-bzip2_version = 1.0.6
-ncurses_version = 6.1
-curl_version = 7.61.0
-gsl_version = 2.5
-# Needed for gnutls + dependencies
-gmp_version = 6.1.2
-nettle_version = 3.4
-gnutls_version = 3.5.19
-
 # Source tar files
 xz_tar_file = xz-$(xz_version).tar.xz
 bzip2_tar_file = bzip2-$(bzip2_version).tar.gz
@@ -160,28 +169,28 @@ sources_gnutls = sources/gnutls-$(gnutls_version)
 # Get tar files
 
 sources/$(xz_tar_file):
-	cd sources && wget https://www.tukaani.org/xz/$(xz_tar_file)
+	cd sources && wget '$(xz_upstream_url)/$(xz_tar_file)'
 
 sources/$(bzip2_tar_file):
-	cd sources && wget http://bzip.org/$(bzip2_version)/$(bzip2_tar_file)
+	cd sources && wget '$(bzip2_upstream_url)/$(bzip2_tar_file)'
 
 sources/$(ncurses_tar_file):
-	cd sources && wget https://invisible-mirror.net/archives/ncurses/$(ncurses_tar_file)
+	cd sources && wget '$(ncurses_upstream_url)/$(ncurses_tar_file)'
 
 sources/$(curl_tar_file):
-	cd sources && wget https://curl.haxx.se/download/$(curl_tar_file)
+	cd sources && wget '$(curl_upstream_url)/$(curl_tar_file)'
 
 sources/$(gsl_tar_file):
-	cd sources && wget https://ftpmirror.gnu.org/gsl/$(gsl_tar_file)
+	cd sources && wget '$(gsl_upstream_url)/$(gsl_tar_file)'
 
 sources/$(gmp_tar_file):
-	cd sources && wget https://gmplib.org/download/gmp/$(gmp_tar_file)
+	cd sources && wget '$(gmp_upstream_url)/$(gmp_tar_file)'
 
 sources/$(nettle_tar_file):
-	cd sources && wget https://ftp.gnu.org/gnu/nettle/$(nettle_tar_file)
+	cd sources && wget '$(nettle_upstream_url)/$(nettle_tar_file)'
 
 sources/$(gnutls_tar_file):
-	cd sources && wget https://www.gnupg.org/ftp/gcrypt/gnutls/v3.5/$(gnutls_tar_file)
+	cd sources && wget '$(gnutls_upstream_url)/$(gnutls_tar_file)'
 
 # Unpack tars
 
@@ -565,8 +574,22 @@ staging/README.$(target).txt : texts/readme.$(target).template \
 	printf '\nCurrent build system revision:\n' >> $@.tmp && \
 	git rev-parse --verify HEAD >> $@.tmp && \
 	git status -s >> $@.tmp && \
+	printf '\nSource URLs:\n\n' >> $@.tmp && \
+	printf '%-12s %s\n' bcftools "`git --git-dir=$(sources_bcftools)/.git remote -v | awk '$$1 == "origin" && $$3 == "(fetch)" { print $$2 }'`" >> $@.tmp && \
+	printf '%-12s %s\n' htslib "`git --git-dir=$(sources_htslib)/.git remote -v | awk '$$1 == "origin" && $$3 == "(fetch)" { print $$2 }'`" >> $@.tmp && \
+	printf '%-12s %s\n' samtools "`git --git-dir=$(sources_samtools)/.git remote -v | awk '$$1 == "origin" && $$3 == "(fetch)" { print $$2 }'`" >> $@.tmp && \
+	printf '%-12s %s\n' libdeflate "`git --git-dir=$(sources_libdeflate)/.git remote -v | awk '$$1 == "origin" && $$3 == "(fetch)" { print $$2 }'`" >> $@.tmp && \
+	printf '%-12s %s\n' zlib "`git --git-dir=$(sources_zlib)/.git remote -v | awk '$$1 == "origin" && $$3 == "(fetch)" { print $$2 }'`" >> $@.tmp && \
+	printf '%-12s %s\n' bzip2 '$(bzip2_upstream_url)/$(bzip2_tar_file)' >> $@.tmp && \
+	printf '%-12s %s\n' xz '$(xz_upstream_url)/$(xz_tar_file)' >> $@.tmp && \
+	printf '%-12s %s\n' gsl '$(gsl_upstream_url)/$(gsl_tar_file)' >> $@.tmp && \
+	printf '%-12s %s\n' ncurses '$(ncurses_upstream_url)/$(ncurses_tar_file)' >> $@.tmp && \
+	printf '%-12s %s\n' curl '$(curl_upstream_url)/$(curl_tar_file)' >> $@.tmp && \
+	printf '%-12s %s\n' gmp '$(gmp_upstream_url)/$(gmp_tar_file)' >> $@.tmp && \
+	printf '%-12s %s\n' nettle '$(nettle_upstream_url)/$(nettle_tar_file)' >> $@.tmp && \
+	printf '%-12s %s\n' gnutls '$(gnutls_upstream_url)/$(gnutls_tar_file)' >> $@.tmp && \
 	printf '\nRevisions used for sources obtained via git:\n\n' >> $@.tmp && \
-	git submodule status >> $@.tmp && \
+	git submodule status | sed 's#sources/##' >> $@.tmp && \
 	printf '\nSHA224 checksums of downloaded source archive files:\n\n' >> $@.tmp && \
 	( cd sources && sha224sum $(bzip2_tar_file) $(curl_tar_file) \
              $(gmp_tar_file) $(gnutls_tar_file) $(gsl_tar_file) \
