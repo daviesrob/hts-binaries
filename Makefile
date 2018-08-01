@@ -605,11 +605,15 @@ tests/bcftools/test/test.pl: $(sources_bcftools)/configure.ac
 	chmod a+x tests/bcftools/bcftools tests/bcftools/misc/plot-vcfstats && \
 	cp $(sources_bcftools)/test/test.pl tests/bcftools/test/
 
-test-bcftools: tests/bcftools/test/test.pl
+test-bcftools: tests/bcftools/test/test.pl staging/bin/bcftools
 	cd tests/bcftools && \
 	PATH="$(abs_staging)/bin:$$PATH" REF_PATH=: ./test/test.pl --plugins -t /tmp/JRjxzsDD69 --exec bgzip='$(abs_staging)/bin/bgzip' --exec tabix='$(abs_staging)/bin/tabix'
 
-test: test-samtools test-bcftools
+test-symbols: staging/bin/samtools staging/bin/bcftools staging/lib/libhts.a staging/lib/fallback/libcurl.so.4
+	find staging -type f -print | file -F'	' -f - | awk -F'	' '/ ELF / { print $$1 }' | scripts/check_lib_deps.pl
+	find staging -type f -print | file -F'	' -f - | awk -F'	' '/ ELF / { print $$1 }' | scripts/check_symbols.pl
+
+test: test-symbols test-samtools test-bcftools
 
 hts-binaries-test.tgz: tests/samtools/test/test.pl tests/bcftools/test/test.pl
 	tar -cvhzf $@.tmp \
