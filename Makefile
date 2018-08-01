@@ -207,7 +207,12 @@ $(sources_nettle)/configure $(sources_nettle)/nettle.texinfo: sources/$(nettle_t
 	cd sources && tar xvzf $(nettle_tar_file) && touch ../$(sources_nettle)/configure ../$(sources_nettle)/nettle.texinfo
 
 $(sources_gnutls)/configure $(sources_gnutls)/LICENSE: sources/$(gnutls_tar_file)
-	cd sources && tar xvJf $(gnutls_tar_file) && touch ../$(sources_gnutls)/configure ../$(sources_gnutls)/LICENSE
+	cd sources && \
+	tar -xvJf $(gnutls_tar_file) \
+	    --exclude='gnutls-$(gnutls_version)/doc/functions/*' \
+	    --exclude='gnutls-$(gnutls_version)/doc/manpages/*.3' \
+	    --exclude='gnutls-$(gnutls_version)/doc/reference/html' && \
+	touch ../$(sources_gnutls)/configure ../$(sources_gnutls)/LICENSE
 
 # Build libz.a
 $(sources_zlib)/libz.a built_deps/lib/libz.a: $(sources_zlib)/configure
