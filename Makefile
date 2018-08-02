@@ -112,6 +112,8 @@ wrapper_ldflags = -Wl,--wrap=memcpy \
                   -Wl,--wrap=__fdelt_chk \
                   -Wl,--wrap=__stack_chk_fail \
                   -Wl,--wrap=__vasprintf_chk \
+                  -Wl,--wrap=secure_getenv \
+                  -Wl,--wrap=fmemopen \
                   -Wl,--hash-style=both
 
 # Wrapper around libcurl
@@ -360,7 +362,7 @@ built_deps/lib/libcurl.so: $(sources_curl)/configure \
 	            CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I$(abs_built_deps)/include' \
 	            LDFLAGS='-L$(abs_built_deps)/lib $(wrapper_ldflags)' \
-	            LIBS='-lnettle -lhogweed -lgmp -lglibc_wrap -lfind_ca_files' && \
+	            LIBS='-lnettle -lhogweed -lgmp -lglibc_wrap -lfind_ca_files -lrt' && \
 	$(MAKE) clean && \
 	$(MAKE) && \
 	$(MAKE) install

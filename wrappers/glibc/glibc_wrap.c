@@ -136,3 +136,24 @@ int __wrap___vasprintf_chk(char **strp, int flags_ignored, const char *fmt,
                            va_list args) {
     return _vasprintf_2_2_5(strp, fmt, args);
 }
+
+/*
+  secure_getenv appeared in glibc 2.17.  It was perviously exported as
+  __secure_getenv.
+ */
+extern char * _secure_getenv_2_2_5(const char *name);
+asm(".symver _secure_getenv_2_2_5, __secure_getenv@GLIBC_2.2.5");
+char * __wrap_secure_getenv(const char *name) {
+    return _secure_getenv_2_2_5(name);
+}
+
+/*
+  fmemopen() implementation was changed in glibc 2.22 to a version that
+  better followed the POSIX API.  It is only used in one place in gnutls,
+  and that is not affected by the change so the old one will do.
+ */
+extern FILE *_fmemopen_2_2_5(void *buf, size_t size, const char *mode);
+asm(".symver _fmemopen_2_2_5, fmemopen@GLIBC_2.2.5");
+FILE *__wrap_fmemopen(void *buf, size_t size, const char *mode) {
+    return _fmemopen_2_2_5(buf, size, mode);
+}
