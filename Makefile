@@ -361,7 +361,7 @@ built_deps/lib/libcurl.so: $(sources_curl)/configure \
 	            --prefix=$(abs_built_deps) \
 	            CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I$(abs_built_deps)/include' \
-	            LDFLAGS='-L$(abs_built_deps)/lib $(wrapper_ldflags)' \
+	            LDFLAGS='-Wl,--undefined=hts_wrapper_find_ca_certs_file -L$(abs_built_deps)/lib $(wrapper_ldflags)' \
 	            LIBS='-lnettle -lhogweed -lgmp -lglibc_wrap -lfind_ca_files -lrt' && \
 	$(MAKE) clean && \
 	$(MAKE) && \

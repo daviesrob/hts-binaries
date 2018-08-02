@@ -133,7 +133,7 @@ CURLcode curl_global_init(long flags) {
     if (not_loaded) not_loaded = try_load("libcurl-gnutls.so.4");
     // Fallback libcurl, included in the package
     if (not_loaded) {
-        not_loaded = try_load("${ORIGIN}/../lib/fallback/libcurl.so");
+        not_loaded = try_load("${ORIGIN}/../lib/fallback/libcurl.so.4");
     }
     // Give up if not loaded at this point
     if (not_loaded) return CURLE_FAILED_INIT;
