@@ -30,7 +30,10 @@ DEALINGS IN THE SOFTWARE.  */
 #define NO_REDIRECT_CURL_FUNCS
 #include <curl/curl.h>
 
+#define DEBUG_ENV_VAR "HTS_DEBUG_LIBCURL_WRAPPER"
+
 static void *libcurl = NULL;
+static int debug = 0;
 
 __attribute__((__visibility__("hidden")))
 CURLcode (*indirect_curl_global_init)(long flags) = NULL;
@@ -88,13 +91,33 @@ CURLSHcode (*indirect_curl_share_setopt)(CURLSH *, CURLSHoption option, ...) = N
 __attribute__((__visibility__("hidden")))
 CURLSHcode (*indirect_curl_share_cleanup)(CURLSH *) = NULL;
 
-#define RESOLVE(NAME) *(void **) (&indirect_##NAME) = dlsym(libcurl, #NAME); \
-  if (!indirect_##NAME) goto fail
+#define RESOLVE(NAME) do {                                              \
+        *(void **) (&indirect_##NAME) = dlsym(libcurl, #NAME);          \
+        if (!indirect_##NAME) {                                         \
+            if (debug) {                                                \
+                char *e = dlerror();                                    \
+                fprintf(stderr,                                         \
+                        "[D::try_load] Failed to resolve '%s'%s%s\n",   \
+                        #NAME, (e ? " : " : ""), (e ? e : ""));         \
+            }                                                           \
+            goto fail;                                                  \
+        }                                                               \
+    } while (0)
 
 static int try_load(const char *so_name) {
     if (!indirect_curl_global_init) {
+        if (debug) {
+            fprintf(stderr, "[D::try_load] Trying to load \"%s\"\n", so_name);
+        }
         libcurl = dlopen(so_name, RTLD_LAZY|RTLD_LOCAL);
-        if (!libcurl) return -1;
+        if (!libcurl) {
+            if (debug) {
+                char *e = dlerror();
+                fprintf(stderr, "[D::try_load] Failed to load \"%s\"%s%s\n",
+                        so_name, (e ? " : " : ""), (e ? e : ""));
+            }
+            return -1;
+        }
     }
     RESOLVE(curl_global_init);
     RESOLVE(curl_global_cleanup);
@@ -117,6 +140,9 @@ static int try_load(const char *so_name) {
     RESOLVE(curl_share_init);
     RESOLVE(curl_share_setopt);
     RESOLVE(curl_share_cleanup);
+    if (debug) {
+        fprintf(stderr, "[D::try_load] Successfully loaded \"%s\"\n", so_name);
+    }
     return 0;
  fail:
     dlclose(libcurl);
@@ -127,6 +153,11 @@ static int try_load(const char *so_name) {
 
 CURLcode curl_global_init(long flags) {
     int not_loaded = -1;
+    char *debug_env = getenv(DEBUG_ENV_VAR);
+    if (debug_env) {
+        debug = 1;
+    }
+
     // Usual name for libcurl; openssl version on debian-based systems
     not_loaded = try_load("libcurl.so.4");
     // Gnutls version on debian-based systems

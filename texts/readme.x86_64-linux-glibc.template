@@ -64,22 +64,16 @@ cannot verify.
 The usual symptom of certificate problems is that downloading http:// URLs
 works, but using https:// (also s3:// and gcs://) URLs does not.  It is
 likely that the failure is reported as an "Input/output error".  To check
-if it really is a certificate problem, the included `htsfile` program can
-be run in verbose mode to show the verification process:
+if it really is a certificate problem, try setting the environment variable
+HTS_DEBUG_LIBCURL_WRAPPER=1 to turn on debugging messages.  The lines
+starting '[D::find_ca_files]' will show which locations are being searched.
+If you see:
 
-htsfile -vvvvv <URL>
+[D::find_ca_files] Failed to find a CA bundle.
 
-If you see a message like:
-
-* found 171 certificates in /etc/pki/tls/certs/ca-bundle.crt
-
-then it found a certificates file in the location shown.  If instead you see:
-
-* server certificate verification failed. CAfile: none CRLfile: none
-
-then it was unable to find any certificates.  You will need to set the
-CURL_CA_BUNDLE environment variable to the location of a suitable certificates
-file.
+then the search failed and you will either need to use the CURL_CA_BUNDLE
+environment variable or install the certificates file in one of the
+locations that is searched.
 
 It is not possible to include a certificates file with this distribution as the
 contents change too frequently.  Instead it is recommended that you install

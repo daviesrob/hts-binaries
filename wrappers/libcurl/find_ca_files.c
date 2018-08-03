@@ -23,11 +23,17 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.  */
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+
+#define DEBUG_ENV_VAR "HTS_DEBUG_LIBCURL_WRAPPER"
+
+static int debug = 0;
 
 __attribute__((constructor)) void hts_wrapper_find_ca_certs_file() {
     /*
@@ -53,26 +59,53 @@ __attribute__((constructor)) void hts_wrapper_find_ca_certs_file() {
     };
     const size_t num_locs = sizeof(locations) / sizeof(locations[0]);
     const char *found = NULL;
+    char *debug_env = getenv(DEBUG_ENV_VAR);
+    char *ca_bundle;
     size_t i;
     int save_errno = errno;
 
+    if (debug_env)
+        debug = 1;
+
     // Check if user has already supplied a CURL_CA_BUNDLE
-    if (getenv("CURL_CA_BUNDLE") != NULL) {
+    ca_bundle = getenv("CURL_CA_BUNDLE");
+    if (ca_bundle != NULL) {
+        if (debug) {
+            fprintf(stderr,
+                    "[D::find_ca_files] Using CURL_CA_BUNDLE = \"%s\"\n",
+                    ca_bundle);
+        }
         errno = save_errno;
         return;
     }
 
     for (i = 0; i < num_locs; i++) {
+        if (debug) {
+            fprintf(stderr, "[D::find_ca_files] Trying \"%s\" : ",
+                    locations[i]);
+        }
         int fd = open(locations[i], O_RDONLY);
         if (fd >= 0) {
             close(fd);
+            if (debug) {
+                fprintf(stderr, "Success\n");
+            }
             found = locations[i];
             break;
+        } else {
+            if (debug) {
+                fprintf(stderr, "%s\n", strerror(errno));
+            }
         }
     }
 
-    if (found)
+    if (found) {
         setenv("CURL_CA_BUNDLE", found, 0);
+    } else {
+        if (debug) {
+            fprintf(stderr, "[D::find_ca_files] Failed to find a CA bundle.\n");
+        }
+    }
 
     errno = save_errno;
     return;
