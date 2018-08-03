@@ -289,6 +289,7 @@ built_deps/lib/libgmp.a: $(sources_gmp)/configure
 	cd $(sources_gmp) && \
 	./configure --enable-fat --disable-shared \
 	            --prefix=$(abs_built_deps) \
+	            CPPFLAGS='-DPIC' \
 	            CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' && \
 	$(MAKE) clean && \
 	$(MAKE) && \
