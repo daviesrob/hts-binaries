@@ -22,4 +22,5 @@ tests/samtools
 built_deps/
 staging/
 htstools-x86_64-linux-glibc.tgz
+htstools-x86_64-linux-musl.tgz
 hts-binaries-test.tgz
