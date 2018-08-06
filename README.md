@@ -30,6 +30,13 @@ sudo apt upgrade
 sudo apt install git gcc make autoconf automake xz-utils pkg-config
 ```
 
+On Alpine use:
+
+```
+sudo apk update
+sudo apk add autoconf automake make gcc musl-dev perl bash coreutils tar xz
+```
+
 Clone this repository:
 
 ```
