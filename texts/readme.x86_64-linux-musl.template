@@ -1,0 +1,134 @@
+Samtools, Bcftools and HTSlib binary distribution
+=================================================
+
+This package contains a binary distribution of samtools and bcftools
+along with a selection of other programs like tabix and bgzip.  It
+also includes a copy of the htslib library that can be used with a
+number of third-party software.  Most features have been enabled,
+apart from the bcftools perl filters which cannot easily be included
+at the moment.
+
+These binaries are designed to work on x86_64 Linux distributions
+that use the Musl C library (http://www.musl-libc.org/).  Examples include
+Alpine linux.  They will not work on distributions that use alternate C
+libraries (Linux distributions like Debian, Ubuntu, RedHat and CentOS use
+glibc).
+
+The programs can all be found in the bin/ subdirectory.  Note that
+some of the programs will look for other files in locations relative
+to where the program has been installed.  To ensure they work properly
+it is important to keep them in this directory tree and not try to
+move them elsewhere.
+
+Manual pages can be found under the share/man directories (read them with
+`man -l`), and also at https://www.htslib.org/doc
+
+Support for accessing remote data
+=================================
+
+These programs use libcurl (https://curl.haxx.se) to allow them
+to access files over the internet (http://, https://, ftp://, s3:// and
+gcs:// URLs).  They will prefer to use a copy of libcurl installed
+on you system if possible, but if that is either not available or
+not compatible, they will fall back to a copy included in the
+lib/fallback directory.
+
+While the included libcurl will have been the most recent version when this
+distribution was made, it may not be now.  In particular it will lack any
+security updates that have been made since it was built.  As the copy
+installed on your system should be getting these updates, it is **strongly**
+recommended that you use the system libcurl and not the one included here.
+
+To disable the fall-back libcurl, remove the file lib/fallback/libcurl.so.4
+
+If using the system libcurl causes problems, you can force the included
+one to be used by setting the LD_LIBRARY_PATH environment variable
+to the absolute path of the lib/fallback directory.
+
+TLS Certificates
+================
+
+Libcurl needs a set of trusted certificates so that it can check that it
+is talking to the correct server when making secure (https://) connections.
+If you are using a copy of libcurl on your system then it will use the
+certificates supplied by your operating system distribution to do this.
+
+If you are using the fall-back libcurl, it will try searching a number of
+locations where a certificates file could be installed.  If this fails it
+will be necessary to set the CURL_CA_BUNDLE environment variable to the
+location of an up-to-date certificates file for verification to work.
+By default, HTSlib will refuse to communicate with secure sites that it
+cannot verify.
+
+The usual symptom of certificate problems is that downloading http:// URLs
+works, but using https:// (also s3:// and gcs://) URLs does not.  It is
+likely that the failure is reported as an "Input/output error".  To check
+if it really is a certificate problem, try setting the environment variable
+HTS_DEBUG_LIBCURL_WRAPPER=1 to turn on debugging messages.  The lines
+starting '[D::find_ca_files]' will show which locations are being searched.
+If you see:
+
+[D::find_ca_files] Failed to find a CA bundle.
+
+then the search failed and you will either need to use the CURL_CA_BUNDLE
+environment variable or install the certificates file in one of the
+locations that is searched.
+
+It is not possible to include a certificates file with this distribution as the
+contents change too frequently.  Instead it is recommended that you install
+the certificates package for your operating system distribution (this will
+most likely be called `ca-certificates`).  If that is not possible, a suitable
+file can be downloaded from https://curl.haxx.se/docs/caextract.html as a
+last resort. (If you use this, make sure you honour the request on that page
+to not download the file too frequently, and certainly not more than
+once a day.)
+
+License Summary
+===============
+
+Software in the distribution is provided under the terms of the following
+licenses:
+
+bcftools : GNU General Public License version 3 (due to including polysomy)
+
+samtools : The MIT/Expat License
+
+HTSlib   : The MIT/Expat License, except the cram support which is distributed
+           under the Modified (3-Clause) BSD license.
+
+Other software in bin/ is distributed under the MIT/Expat License terms.
+
+The binaries include software from a number of other packages.  That
+software is distributed under the following terms:
+
+libbz2 : BSD-style license.  See share/doc/bzip2/copyright.
+
+libdeflate : MIT license.
+
+liblzma : Public domain.  See share/doc/xz/copyright.
+
+libz : zlib license.
+
+nettle : GNU Lesser General Public License version 3.
+
+ncurses : X11 license.  Used only for `samtools tview`.
+
+gsl : GNU General Public License version 3.  Used only for `bcftools polysomy`.
+
+The incuded copy of libcurl and its dependencies are distributed under the
+following terms:
+
+libcurl : X11 derivative license.
+
+gnutls : GNU Lesser General Public License version 3.
+
+nettle : GNU Lesser General Public License version 3.
+
+gmp : GNU Lesser General Public License version 3.
+
+
+Full license information can be found under share/doc in the 'copyright'
+file for each package.
+
+Build Information
+=================

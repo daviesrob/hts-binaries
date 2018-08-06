@@ -23,7 +23,11 @@
 # DEALINGS IN THE SOFTWARE.
 #
 # Target for build
-target = x86_64-linux-glibc
+os_name_shell_output := $(shell scripts/get_os_name.sh)
+machine_shell_output := $(shell uname -m)
+os_name = $(os_name_shell_output)
+machine = $(machine_shell_output)
+target = $(machine)-$(os_name)
 
 # Root directory for the binaries tar file
 tar_root = htstools-$(target)
@@ -101,6 +105,7 @@ wrappers/glibc/glibc_wrap.o: wrappers/glibc/glibc_wrap.c
 
 wrappers/glibc/glibm_wrap.o: wrappers/glibc/glibm_wrap.c
 
+ifeq ($(os_name),linux-glibc)
 wrapper_ldflags = -Wl,--wrap=memcpy \
                   -Wl,--wrap=lgamma \
                   -Wl,--wrap=scanf \
@@ -115,6 +120,13 @@ wrapper_ldflags = -Wl,--wrap=memcpy \
                   -Wl,--wrap=secure_getenv \
                   -Wl,--wrap=fmemopen \
                   -Wl,--hash-style=both
+libglibc_wrap_a = built_deps/lib/libglibc_wrap.a
+l_glibc_wrap = -lglibc_wrap
+else
+wrapper_ldflags =
+libglibc_wrap_a =
+l_glibc_wrap =
+endif
 
 # Wrapper around libcurl
 wrappers/libcurl/libcurl.a: wrappers/libcurl/libcurl_wrap.o
@@ -342,7 +354,7 @@ built_deps/lib/libfind_ca_files.a: wrappers/libcurl/find_ca_files.o
 built_deps/lib/libcurl.so: $(sources_curl)/configure \
                            built_deps/lib/libz.a \
                            built_deps/lib/libgnutls.a \
-                           built_deps/lib/libglibc_wrap.a \
+                           $(libglibc_wrap_a) \
                            built_deps/lib/libfind_ca_files.a
 	cd $(sources_curl) && \
 	./configure --enable-symbol-hiding --disable-ares --enable-rt \
@@ -363,7 +375,7 @@ built_deps/lib/libcurl.so: $(sources_curl)/configure \
 	            CFLAGS='$(DEBUG_CFLAGS) $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I$(abs_built_deps)/include' \
 	            LDFLAGS='-Wl,--undefined=hts_wrapper_find_ca_certs_file -L$(abs_built_deps)/lib $(wrapper_ldflags)' \
-	            LIBS='-lnettle -lhogweed -lgmp -lglibc_wrap -lfind_ca_files -lrt' && \
+	            LIBS='-lnettle -lhogweed -lgmp $(l_glibc_wrap) -lfind_ca_files -lrt' && \
 	$(MAKE) clean && \
 	$(MAKE) && \
 	$(MAKE) install
@@ -391,7 +403,7 @@ $(sources_htslib)/configure: $(sources_htslib)/configure.ac
 staging/lib/libhts.a: $(sources_htslib)/configure \
                       wrappers/libcurl/libcurl.a \
                       wrappers/crypto/libcrypto.a \
-                      built_deps/lib/libglibc_wrap.a \
+                      $(libglibc_wrap_a) \
                       built_deps/lib/libbz2.a \
                       built_deps/lib/liblzma.a \
                       built_deps/lib/libdeflate.a \
@@ -403,7 +415,7 @@ staging/lib/libhts.a: $(sources_htslib)/configure \
 	./configure CFLAGS='-g $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I../../wrappers/libcurl -I../../wrappers/crypto -I../../built_deps/include' \
 	            LDFLAGS='$(wrapper_ldflags) -L../../wrappers/libcurl -L../../wrappers/crypto -L../../built_deps/lib -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a -Wl,--gc-sections' \
-                    LIBS='-lcrypto -lnettle -lcurl -lglibc_wrap -ldl' \
+                    LIBS='-lcrypto -lnettle -lcurl $(l_glibc_wrap) -ldl' \
                     --prefix="$(abs_staging)" && \
 	$(MAKE) && \
 	$(MAKE) install
@@ -420,14 +432,14 @@ $(sources_samtools)/configure: $(sources_samtools)/configure.ac
 staging/bin/samtools: $(sources_samtools)/configure \
                       staging/lib/libhts.a \
                       built_deps/lib/libncurses.a \
-                      built_deps/lib/libglibc_wrap.a \
+                      $(libglibc_wrap_a) \
                       wrappers/crypto/libcrypto.a
 	cd $(sources_samtools) && \
 	$(MAKE) distclean && \
 	./configure CFLAGS='-g $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I../../built_deps/include' \
 	            LDFLAGS='-L../../wrappers/crypto -L../../built_deps/lib $(wrapper_ldflags) -Wl,--gc-sections' \
-                    LIBS='-lcrypto -lnettle -lncurses -lglibc_wrap -ldl' \
+                    LIBS='-lcrypto -lnettle -lncurses $(l_glibc_wrap) -ldl' \
                     --with-ncurses \
                     --prefix="$(abs_staging)" && \
 	$(MAKE) && \
@@ -449,7 +461,7 @@ $(sources_bcftools)/configure: $(sources_bcftools)/configure.ac
 staging/bin/bcftools: $(sources_bcftools)/configure \
                       staging/lib/libhts.a \
 	              built_deps/lib/libgsl.a \
-                      built_deps/lib/libglibc_wrap.a \
+                      $(libglibc_wrap_a) \
                       wrappers/crypto/libcrypto.a \
 	              wrappers/bcftools-plugin/liblocate_plugins.a \
 	              wrappers/bcftools-plugin/locate_plugins.h
@@ -458,7 +470,7 @@ staging/bin/bcftools: $(sources_bcftools)/configure \
 	./configure CFLAGS='-g $(CFLAGS) $(PIC)' \
 	            CPPFLAGS='-I../../built_deps/include -include ../../wrappers/bcftools-plugin/locate_plugins.h' \
 	            LDFLAGS='-L../../wrappers/crypto -L../../wrappers/bcftools-plugin -L../zlib -L../../built_deps/lib $(wrapper_ldflags) -Wl,--exclude-libs,libcrypto.a:libz.a:libnettle.a:libdeflate.a:liblzma.a:libbz2.a:libglibc_wrap.a:liblocate_plugins.a -Wl,--gc-sections' \
-                    LIBS='-lm -lcrypto -lnettle -llocate_plugins -lglibc_wrap -ldl' \
+                    LIBS='-lm -lcrypto -lnettle -llocate_plugins $(l_glibc_wrap) -ldl' \
 	            --enable-libgsl --with-cblas=gslcblas \
                     --prefix="$(abs_staging)" && \
 	$(MAKE) && \
