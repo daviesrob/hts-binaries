@@ -30,7 +30,8 @@ machine = $(machine_shell_output)
 target = $(machine)-$(os_name)
 
 # Root directory for the binaries tar file
-tar_root = htstools-$(target)
+tar_version = 1.9
+tar_root = hts-binaries-$(tar_version)-$(target)
 
 # Version numbers to expect for sources from tar files
 xz_version = 5.2.4
